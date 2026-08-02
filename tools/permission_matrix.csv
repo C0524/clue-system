@@ -1,0 +1,23 @@
+field,主管,超级管理员,咨询,医助,套电(仅本人),运营,后端允许写,后端自动写,备注
+name,Y,Y,Y,Y,Y,N,Y,No,前端/后端均保护空值覆盖
+phone,Y,Y,Y,Y,Y,N,Y,No,受后端 protectedKeys 保护（禁止空值覆盖）
+wechat,Y,Y,Y,Y,Y,N,Y,No,受后端 protectedKeys 保护
+gender,Y,Y,Y,Y,Y,N,Y,No,受后端 protectedKeys 保护
+age,Y,Y,Y,Y,Y,N,Y,No,受后端 protectedKeys 保护
+intent,Y,Y,Y,Y,Y,N,Y,No,后端写 intentOperator; 若首次设置会写 firstConsultTime
+book,Y,Y,Y,Y,Y,N,Y,Yes,若 book='已预约' 后端会把 bookUser = req.user.username
+bookUser,Readonly display for many dialogs (but writable via booking actions),Readonly/writable for 超管? ,Readonly display but settable in schedule modal for 咨询/医助,Readonly display but schedule modal allowed?,Readonly（仅显示）/提交由后端补写?,N,Yes,Yes,通常由后端或预约接口设置（前端 schedule/保存路径会提交），详情编辑处通常只读
+arrive,Y,Y,Y,Y?,N,N,Y,Yes,医助可修改；后端写 arriveOperatorRole 并触发 visitCount 更新
+visitDate,Y,Y,Y,Y,Y,N,Y,No,可由编辑或预约模态设置；后端接受写入
+visitStatus,Readonly,Readonly,Readonly,Readonly,Readonly,Readonly,No,Yes,由后端根据 visits 计算并写回
+images (upload),Y,Y,Y(在编辑时),Y(在编辑时),N,N,Y,No,上传在编辑模式允许；删除只有 主管/超级管理员 或 上传者可删
+assignedTo,Y(可设置),Y,? ,? ,? ,N,Y,No,分配通常由主管/超管进行（前端未暴露给其他角色）
+taoRen,Readonly (前端被强制为当前用户 on save),Readonly/导入可覆盖?,Readonly? ,Readonly?,Y (创建者),N,Yes,前端 saveEdit 强制把 taoRen 置为当前登录用户名；导入逻辑中有覆盖可能
+doctor,Y,Y,Y,Y,Y,N,Y,No,可编辑（选择医生）
+department,auto fill from doctor,auto,auto,auto,auto,N,Y,No,由 selectDoc 填充，编辑时不可直接改
+content,Y,Y,Y,Y,Y,N,Y,No,编辑内容字段
+firstConsultTime,Readonly,Readonly,Readonly,Readonly,Readonly,Readonly,No,Yes,后端在首次设置 intent 时写入
+username (creator),Readonly for most,超级管理员可覆盖 in import,Readonly,Readonly,Readonly,Readonly,No,No,导入路径可覆盖 username（仅限主管/超管允许）
+createTime,Readonly except 超级管理员,Editable for 超级管理员 only,Readonly,Readonly,Readonly,Readonly,No,No,超级管理员可编辑 createTime，其他由后端生成
+
+# 说明行: Y=前端允许通过 UI 编辑(依赖能否进入编辑模式)，Readonly=前端只读显示或显示在 disabled input 中，后端允许写=后端接口接受并写入该字段，后端自动写=后端在特定动作时会自动写入该字段（无需前端提供）

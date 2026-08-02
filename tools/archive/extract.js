@@ -1,0 +1,1 @@
+const fs = require('fs'); const t = fs.readFileSync('index.html','utf8'); const s = t.lastIndexOf('<script>'); const e = t.lastIndexOf('</script>'); if(s === -1 || e === -1){ throw new Error('script tags not found'); } const js = t.slice(s+8,e); fs.writeFileSync('tmp_vue_script.js', js, 'utf8'); console.log('wrote', js.length);
