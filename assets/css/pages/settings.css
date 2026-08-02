@@ -1,0 +1,22 @@
+/* 设置与日志页专属 */
+.list-table{border-collapse:collapse;margin:6px 0;width:100%}
+.list-table thead th{font-weight:600;padding:8px 6px;border-bottom:1px solid rgba(0,0,0,0.06);background:transparent;text-align:center}
+.list-table tbody td{padding:8px 6px;border:0;text-align:center}
+.action-btn{padding:6px 8px;border-radius:6px;border:1px solid rgba(0,0,0,0.06);background:transparent;cursor:pointer;color:var(--text-body);font-size:13px}
+.action-btn:hover{background:rgba(0,0,0,0.04)}
+
+.log-table{border-collapse:collapse;margin:6px 0;width:100%}
+.log-table thead th{font-weight:600;padding:8px 6px;border-bottom:1px solid rgba(0,0,0,0.06);background:transparent;text-align:center}
+.log-table tbody td{padding:10px 8px;border:0;vertical-align:top;text-align:center}
+.log-table tbody tr:nth-child(odd){background:var(--table-row-bg)}
+.log-table tbody tr:hover{background:var(--table-hover)}
+
+.pagination{display:flex;margin-top:10px;align-items:center;gap:24px}
+.pagination .page-size{flex:0 0 auto;text-align:left}
+.pagination .controls{flex:0 0 auto;text-align:center}
+.pagination .total{flex:0 0 auto;text-align:left}
+.pagination .unvisited{flex:0 0 auto;margin-left:auto;text-align:right}
+.pagination select{padding:4px;border:1px solid #ddd;border-radius:4px;}
+.pagination button{padding:4px 8px;}
+
+.log{background:#f8f9fa;padding:8px;margin:4px 0;border-left:3px solid var(--primary);font-size:14px;color:var(--text-body)}

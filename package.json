@@ -4,7 +4,8 @@
   "description": "医疗线索话单管理系统",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test:smoke": "node tests/smoke-api.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1055.0",

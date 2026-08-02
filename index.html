@@ -10,8 +10,30 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
 <script src="assets/js/api-client.js"></script>
+<script src="assets/js/http-client.js"></script>
+<script src="assets/js/auth-api.js"></script>
+<script src="assets/js/clues-api.js"></script>
+<script src="assets/js/users-api.js"></script>
+<script src="assets/js/doctors-api.js"></script>
+<script src="assets/js/visits-api.js"></script>
+<script src="assets/js/import-api.js"></script>
+<script src="assets/js/stats-api.js"></script>
+<script src="assets/js/modules/revisit-module.js"></script>
+<script src="assets/js/modules/clue-edit-module.js"></script>
+<script src="assets/js/modules/clue-detail-module.js"></script>
+<script src="assets/js/modules/settings-module.js"></script>
 <script src="assets/js/auth-client.js"></script>
 <script src="assets/js/permissions-client.js"></script>
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/layout.css">
+<link rel="stylesheet" href="assets/css/utilities.css">
+<link rel="stylesheet" href="assets/css/pages/login.css">
+<link rel="stylesheet" href="assets/css/pages/clue-list.css">
+<link rel="stylesheet" href="assets/css/pages/visits.css">
+<link rel="stylesheet" href="assets/css/pages/stats.css">
+<link rel="stylesheet" href="assets/css/pages/settings.css">
 <link rel="stylesheet" href="assets/css/main.css">
 </head>
 <body>
@@ -2734,10 +2756,14 @@ window.app = new Vue({
       this.inlineLoading = true;
       try{
         const payload = { id: this.selectedRow.id, content: this.inlineVisitContent, user: (this.user && this.user.username) || '' };
-        const res = await this.apiCall('/api/visit', { method: 'POST', body: JSON.stringify(payload) });
+        const res = (window.ClueVisitsApi && typeof window.ClueVisitsApi.addVisit === 'function')
+          ? await window.ClueVisitsApi.addVisit(this, payload)
+          : await this.apiCall('/api/visit', { method: 'POST', body: JSON.stringify(payload) });
         if(res && res.code === 200){
           // 刷新回访列表
-          const d = await this.apiCall('/api/visit/' + this.selectedRow.id);
+          const d = (window.ClueVisitsApi && typeof window.ClueVisitsApi.listVisits === 'function')
+            ? await window.ClueVisitsApi.listVisits(this, this.selectedRow.id)
+            : await this.apiCall('/api/visit/' + this.selectedRow.id);
           if(d && d.code === 200){
             this.currentVisit = d.data || [];
           }
@@ -2817,31 +2843,8 @@ window.app = new Vue({
       this.user = {};
     },
     async getRevisitList(){
-      try{
-        this.revisitLoading = true;
-        const d = await this.apiCall('/api/revisitList');
-        if(d && d.code === 200){
-          this.revisitList = d.data || [];
-          // 默认按到诊时间（visitDate 优先，兜底为 createTime）降序排列，最新到诊排在前面
-          try{
-            this.revisitList.sort((a,b)=>{
-              const ta = new Date(a.visitDate || a.createTime).getTime() || 0;
-              const tb = new Date(b.visitDate || b.createTime).getTime() || 0;
-              return tb - ta;
-            });
-          }catch(e){console.warn('revisitList sort error', e)}
-          this.revisitShowList = [...this.revisitList];
-          // apply any active search
-          this.doRevisitSearch();
-          this.showMsg('复诊列表已刷新');
-        }else{
-          this.showMsg((d && d.msg) || '刷新失败','error');
-        }
-      }catch(e){
-        console.error('getRevisitList error', e);
-        this.showMsg('刷新失败','error');
-      }finally{
-        this.revisitLoading = false;
+      if(window.ClueRevisitModule && typeof window.ClueRevisitModule.getRevisitList === 'function'){
+        return window.ClueRevisitModule.getRevisitList(this);
       }
     },
     sumSimpleField(arr){
@@ -2863,39 +2866,8 @@ window.app = new Vue({
       }catch(e){ return false; }
     },
     async getExpertSchedule(){
-      try{
-        const m = (this.expertScheduleSearch && this.expertScheduleSearch.month) ? this.expertScheduleSearch.month : (new Date()).toISOString().slice(0,7);
-        if(!/^\d{4}-\d{2}$/.test(m)){
-          this.showMsg('月份格式不正确','error');
-          return;
-        }
-        this.expertScheduleLoading = true;
-        const parts = [`month=${encodeURIComponent(m)}`];
-        if(this.expertScheduleSearch.doctor) parts.push(`doctor=${encodeURIComponent(this.expertScheduleSearch.doctor)}`);
-        if(this.expertScheduleSearch.bookUser) parts.push(`bookUser=${encodeURIComponent(this.expertScheduleSearch.bookUser)}`);
-        const d = await this.apiCall('/api/expertSchedule?' + parts.join('&'));
-        if(d && d.code === 200 && d.data){
-          const payload = d.data || {};
-          this.expertScheduleRows = Array.isArray(payload.doctors) ? payload.doctors : [];
-          this.expertScheduleDays = Array.isArray(payload.days) ? payload.days : [];
-          this.expertScheduleDailyTotals = Array.isArray(payload.dailyTotals) ? payload.dailyTotals : [];
-          this.expertScheduleDoctorOptions = Array.isArray(payload.doctorOptions) ? payload.doctorOptions : [];
-          this.expertScheduleBookUserOptions = Array.isArray(payload.bookUserOptions) ? payload.bookUserOptions : [];
-          if((!this.expertScheduleDoctorOptions || this.expertScheduleDoctorOptions.length===0) && Array.isArray(this.doctorList)){
-            this.expertScheduleDoctorOptions = this.doctorList.map(x=>x && x.name ? x.name : '').filter(Boolean);
-          }
-          if((!this.expertScheduleBookUserOptions || this.expertScheduleBookUserOptions.length===0) && Array.isArray(this.consultList)){
-            this.expertScheduleBookUserOptions = this.consultList.map(x=>x && x.username ? x.username : '').filter(Boolean);
-          }
-          this.showExpertScheduleDetail = false;
-        }else{
-          this.showMsg((d && d.msg) || '查询失败','error');
-        }
-      }catch(e){
-        console.error('getExpertSchedule error', e);
-        this.showMsg('查询失败','error');
-      }finally{
-        this.expertScheduleLoading = false;
+      if(window.ClueRevisitModule && typeof window.ClueRevisitModule.getExpertSchedule === 'function'){
+        return window.ClueRevisitModule.getExpertSchedule(this);
       }
     },
     resetExpertScheduleSearch(){
@@ -3128,46 +3100,18 @@ window.app = new Vue({
       }catch(e){return 1}
     },
     openScheduleRevisit(item){
-      if(!item || !item.id) return;
-      // ensure bookUser is initialized to current user so the disabled input reflects a real model value
-      this.revisitForm = { baseItemId: item.id, doctor: item.doctor || '', bookUser: (this.user && this.user.username) || '', visitMode: '', visitDate: '', regFee: '', dosageForm: '', medicineDay: '' };
-      this.revisitModalVisible = true;
+      if(window.ClueRevisitModule && typeof window.ClueRevisitModule.openScheduleRevisit === 'function'){
+        return window.ClueRevisitModule.openScheduleRevisit(this, item);
+      }
     },
     closeScheduleRevisit(){
       this.revisitModalVisible = false;
       this.revisitForm = { baseItemId: '', doctor: '', bookUser: '', visitMode: '', visitDate: '', regFee: '', dosageForm: '', medicineDay: '' };
     },
     async submitScheduleRevisit(){
-      const f = this.revisitForm;
-      if(!f.baseItemId){ this.showMsg('无效的复诊来源','error'); return }
-      if(!f.doctor){ this.showMsg('请选择复诊预约医生','error'); return }
-      if(!f.bookUser){ this.showMsg('请选择复诊预约人员','error'); return }
-      if(!f.visitMode){ this.showMsg('请选择就诊方式','error'); return }
-      if(!f.visitDate){ this.showMsg('请选择预约时间','error'); return }
-      if(this.revisitRegFeeMissing){ this.showMsg('请填写挂号费（可填写 0）','error'); return }
-
-      // 调用后端持久化安排复诊
-      this.isLoading = true;
-      try{
-        const payload = {
-          baseId: f.baseItemId,
-          doctor: f.doctor,
-          bookUser: f.bookUser,
-          visitMode: f.visitMode,
-          visitDate: f.visitDate,
-          regFee: f.regFee
-        };
-        const res = await this.apiCall('/api/scheduleRevisit', { method: 'POST', body: JSON.stringify(payload) });
-        if(res && res.code === 200){
-          this.showMsg('复诊已安排并保存');
-          this.closeScheduleRevisit();
-          // 刷新复诊列表以获取最新的 revisitCount
-          await this.getRevisitList();
-        }else if(res && res.code === 409 && res.duplicateType === 'same_patient_same_day_revisit'){
-          alert(res.msg || '该患者在同一天已有复诊预约，请勿重复预约');
-        }
-      }catch(e){ console.error('submitScheduleRevisit error', e); this.showMsg('安排失败','error'); }
-      finally{ this.isLoading = false }
+      if(window.ClueRevisitModule && typeof window.ClueRevisitModule.submitScheduleRevisit === 'function'){
+        return window.ClueRevisitModule.submitScheduleRevisit(this);
+      }
     },
     // 权限判断：若当前用户角色等于目标角色，或当前用户为 主管/超级管理员，则视为有该角色权限
     can(role){
@@ -3490,91 +3434,20 @@ window.app = new Vue({
     // 打开复诊/咨询回访弹窗（查看/添加回访记录）
     // 第二个参数 ctx: '咨询' 或 '复诊'，用于区分弹窗标题与上下文
     async openRevisitVisit(item, ctx){
-      if(!item || !item.id) return;
-      this.selectedRevisitItem = item;
-      this.revisitVisitContent = '';
-      this.revisitVisitList = [];
-      // context for modal title: default to 咨询
-      this.revisitVisitContext = ctx || '咨询';
-      try{
-        const res = await this.apiCall('/api/visit/' + item.id);
-        if(res && res.code === 200){
-          // normalize list and include optional note; we'll sort by time asc (oldest first)
-          let list = (res.data || []).slice();
-          try{
-            const note = item.content || item.note || item.remark || '';
-            if(note && typeof note === 'string' && note.trim() !== ''){
-              const entry = {
-                time: item.createTime || item.uploadedAt || new Date().toISOString(),
-                user: item.username || item.taoRen || '录入',
-                content: note
-              };
-              // avoid exact duplicate content/user in existing list
-              const exists = list.find(x => x && x.content === entry.content && x.user === entry.user);
-              if(!exists) list.push(entry);
-            }
-          }catch(e){ console.warn('prepend note to revisit list failed', e); }
-
-          // sort ascending by time (older first)
-          list.sort((a,b) => {
-            const ta = new Date(a && a.time ? a.time : 0).getTime();
-            const tb = new Date(b && b.time ? b.time : 0).getTime();
-            return ta - tb;
-          });
-          this.revisitVisitList = list;
-        }
-      }catch(e){ console.error('openRevisitVisit error', e); }
-      this.showRevisitVisitModal = true;
+      if(window.ClueRevisitModule && typeof window.ClueRevisitModule.openRevisitVisit === 'function'){
+        return window.ClueRevisitModule.openRevisitVisit(this, item, ctx);
+      }
     },
     closeRevisitVisit(){ this.showRevisitVisitModal = false; this.selectedRevisitItem = null; this.revisitVisitList = []; this.revisitVisitContent = ''; },
     async submitRevisitVisit(){
-      if(!this.revisitVisitContent || !this.selectedRevisitItem) { this.showMsg('请输入回访内容','error'); return }
-      this.isLoading = true;
-      try{
-        const payload = { id: this.selectedRevisitItem.id, content: this.revisitVisitContent, user: (this.user && this.user.username) || '' };
-        const res = await this.apiCall('/api/visit', { method: 'POST', body: JSON.stringify(payload) });
-        if(res && res.code === 200){
-          // 刷新回访列表
-          const d = await this.apiCall('/api/visit/' + this.selectedRevisitItem.id);
-          if(d && d.code === 200) this.revisitVisitList = d.data || [];
-          this.revisitVisitContent = '';
-          this.showMsg('回访已添加');
-          await this.refreshCurrentTabAfterSave();
-        }
-      }catch(e){ console.error('submitRevisitVisit error', e); this.showMsg('添加失败','error'); }
-      finally{ this.isLoading = false }
+      if(window.ClueRevisitModule && typeof window.ClueRevisitModule.submitRevisitVisit === 'function'){
+        return window.ClueRevisitModule.submitRevisitVisit(this);
+      }
     },
     async submitDetailRevisit(){
-      if(!this.revisitVisitContent || !this.currentDetail || !this.currentDetail.id){ this.showMsg('请输入回访内容','error'); return }
-      this.isLoading = true;
-      try{
-        // If we have a draft visit created during uploads, update that visit; otherwise insert a new visit row
-        if(this.revisitDraftId){
-          const upd = await this.apiCall('/api/updateVisit', { method: 'POST', body: JSON.stringify({ id: this.revisitDraftId, content: this.revisitVisitContent }) });
-          if(upd && upd.code === 200){
-            const d = await this.apiCall('/api/visit/' + this.currentDetail.id);
-            if(d && d.code === 200) this.currentVisit = d.data || [];
-            await this.fetchAndApplyCurrentDetail(this.currentDetail.id);
-            this.revisitVisitContent = '';
-            this.showMsg('回访已添加');
-            await this.refreshCurrentTabAfterSave();
-            // clear draft id after successful submit
-            this.revisitDraftId = null;
-          }
-        }else{
-          const payload = { id: this.currentDetail.id, content: this.revisitVisitContent, user: (this.user && this.user.username) || '' };
-          const res = await this.apiCall('/api/visit', { method: 'POST', body: JSON.stringify(payload) });
-          if(res && res.code === 200){
-            const d = await this.apiCall('/api/visit/' + this.currentDetail.id);
-            if(d && d.code === 200) this.currentVisit = d.data || [];
-            await this.fetchAndApplyCurrentDetail(this.currentDetail.id);
-            this.revisitVisitContent = '';
-            this.showMsg('回访已添加');
-            await this.refreshCurrentTabAfterSave();
-          }
-        }
-      }catch(e){ console.error('submitDetailRevisit error', e); this.showMsg('添加失败','error'); }
-      finally{ this.isLoading = false }
+      if(window.ClueRevisitModule && typeof window.ClueRevisitModule.submitDetailRevisit === 'function'){
+        return window.ClueRevisitModule.submitDetailRevisit(this);
+      }
     },
 
     async deleteImage(img){
@@ -3583,7 +3456,9 @@ window.app = new Vue({
         const ok = confirm('确认删除此图片吗？此操作不可恢复。');
         if(!ok) return;
         this.isLoading = true;
-        const res = await this.apiCall('/api/deleteImage', { method: 'POST', body: JSON.stringify({ id: img.id }) });
+        const res = (window.ClueVisitsApi && typeof window.ClueVisitsApi.deleteImage === 'function')
+          ? await window.ClueVisitsApi.deleteImage(this, img.id)
+          : await this.apiCall('/api/deleteImage', { method: 'POST', body: JSON.stringify({ id: img.id }) });
         if(res && res.code === 200){
           this.showMsg('图片已删除');
           try{
@@ -3737,6 +3612,9 @@ window.app = new Vue({
     },
     // 保存详情编辑（包括可能的回访内容/草稿）
     async saveDetailEdits(){
+      if(window.ClueDetailModule && typeof window.ClueDetailModule.saveDetailEdits === 'function'){
+        return window.ClueDetailModule.saveDetailEdits(this);
+      }
       if(this.detailSaving) return;
       if(!this.currentDetail || !this.currentDetail.id){ this.showMsg('无效的线索','error'); return; }
       if(!this.canEditDetail(this.currentDetail)){ this.showMsg('无权限修改该话单','error'); return; }
@@ -3826,9 +3704,15 @@ window.app = new Vue({
         // 处理回访内容：优先更新已有草稿，否则新建回访
         if(this.revisitVisitContent && String(this.revisitVisitContent).trim() !== ''){
           if(this.revisitDraftId){
-            await this.apiCall('/api/updateVisit', { method: 'POST', body: JSON.stringify({ id: this.revisitDraftId, content: this.revisitVisitContent }) });
+            if(window.ClueVisitsApi && typeof window.ClueVisitsApi.updateVisit === 'function'){
+              await window.ClueVisitsApi.updateVisit(this, { id: this.revisitDraftId, content: this.revisitVisitContent });
+            }else{
+              await this.apiCall('/api/updateVisit', { method: 'POST', body: JSON.stringify({ id: this.revisitDraftId, content: this.revisitVisitContent }) });
+            }
           }else{
-            const created = await this.apiCall('/api/createVisit', { method: 'POST', body: JSON.stringify({ id: this.currentDetail.id, content: this.revisitVisitContent }) });
+            const created = (window.ClueVisitsApi && typeof window.ClueVisitsApi.createVisit === 'function')
+              ? await window.ClueVisitsApi.createVisit(this, { id: this.currentDetail.id, content: this.revisitVisitContent })
+              : await this.apiCall('/api/createVisit', { method: 'POST', body: JSON.stringify({ id: this.currentDetail.id, content: this.revisitVisitContent }) });
             if(created && created.code === 200 && created.data && created.data.id){
               const newVisitId = created.data.id;
               this.revisitDraftId = newVisitId;
@@ -3836,13 +3720,22 @@ window.app = new Vue({
               try{
                 const keys = (this.uploadedImages || []).map(i=>i.key).filter(Boolean);
                 if(keys.length>0){
-                  await this.apiCall('/api/associateImagesToVisit', { method: 'POST', body: JSON.stringify({ visitId: newVisitId, keys }) });
+                  if(window.ClueVisitsApi && typeof window.ClueVisitsApi.associateImagesToVisit === 'function'){
+                    await window.ClueVisitsApi.associateImagesToVisit(this, { visitId: newVisitId, keys });
+                  }else{
+                    await this.apiCall('/api/associateImagesToVisit', { method: 'POST', body: JSON.stringify({ visitId: newVisitId, keys }) });
+                  }
                 }
               }catch(e){ console.warn('associate images to visit failed', e); }
             }
           }
           // 刷新回访列表
-          try{ const d = await this.apiCall('/api/visit/' + this.currentDetail.id); if(d && d.code===200) this.currentVisit = d.data || []; }catch(e){}
+          try{
+            const d = (window.ClueVisitsApi && typeof window.ClueVisitsApi.listVisits === 'function')
+              ? await window.ClueVisitsApi.listVisits(this, this.currentDetail.id)
+              : await this.apiCall('/api/visit/' + this.currentDetail.id);
+            if(d && d.code===200) this.currentVisit = d.data || [];
+          }catch(e){}
           this.revisitVisitContent = '';
           this.revisitDraftId = null;
         }
@@ -3863,16 +3756,9 @@ window.app = new Vue({
 
     // helper to fetch single clue and apply to currentDetail + local lists
     async fetchAndApplyCurrentDetail(id){
-      try{
-        const updated = await this.fetchClueById(id);
-        if(updated){
-          // replace currentDetail entirely
-          this.currentDetail = updated;
-          this.editDetail = JSON.parse(JSON.stringify(this.currentDetail || {}));
-          this.applyFetchedToLocal(updated);
-          this.flashRow(updated.id);
-        }
-      }catch(e){ console.warn('fetchAndApplyCurrentDetail error', e); }
+      if(window.ClueEditModule && typeof window.ClueEditModule.fetchAndApplyCurrentDetail === 'function'){
+        return window.ClueEditModule.fetchAndApplyCurrentDetail(this, id);
+      }
     },
     // 前端本地兜底：完整过期规则以后端返回的 expired 为准；
     // 若缺少 expired，仅将已明确标记的过期状态或意向=无效视为过期。
@@ -3892,10 +3778,12 @@ window.app = new Vue({
       const p = page || this.currentPage || 1;
       payload.page = p;
       payload.pageSize = this.pageSize || 10;
-      const d = await this.apiCall('/api/list', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+      const d = (window.ClueCluesApi && typeof window.ClueCluesApi.list === 'function')
+        ? await window.ClueCluesApi.list(this, payload)
+        : await this.apiCall('/api/list', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
       if(d.code === 200){
         // server returns { rows, total, page, pageSize } when paged
         if(d.data && d.data.rows){
@@ -3918,7 +3806,9 @@ window.app = new Vue({
         try{ this.getUnvisitedCounts(); }catch(e){}
         // 同步过期单统计数字
         try{
-          const ec = await this.apiCall('/api/expiredCount');
+          const ec = (window.ClueCluesApi && typeof window.ClueCluesApi.expiredCount === 'function')
+            ? await window.ClueCluesApi.expiredCount(this)
+            : await this.apiCall('/api/expiredCount');
           if(ec && ec.code === 200 && ec.data){ this.expiredCount = Number(ec.data.count) || 0; }
         }catch(e){ console.warn('get expiredCount failed', e); }
       }
@@ -3933,10 +3823,12 @@ window.app = new Vue({
       const p = page || this.publicPoolCurrentPage || 1;
       payload.page = p;
       payload.pageSize = this.publicPoolPageSize || 20;
-      const d = await this.apiCall('/api/publicPoolList', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+      const d = (window.ClueCluesApi && typeof window.ClueCluesApi.publicPoolList === 'function')
+        ? await window.ClueCluesApi.publicPoolList(this, payload)
+        : await this.apiCall('/api/publicPoolList', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
       if(d && d.code === 200){
         if(d.data && d.data.rows){
           this.publicPoolList = d.data.rows || [];
@@ -3962,7 +3854,9 @@ window.app = new Vue({
 
     async getUnvisitedCounts(){
       try{
-        const d = await this.apiCall('/api/stats/unvisited');
+        const d = (window.ClueStatsApi && typeof window.ClueStatsApi.unvisited === 'function')
+          ? await window.ClueStatsApi.unvisited(this)
+          : await this.apiCall('/api/stats/unvisited');
         if(d && d.code === 200 && d.data){
           this.unvisitedTotal = d.data.totalUnvisited || 0;
           this.unvisitedToday = d.data.todayUnvisited || 0;
@@ -3979,7 +3873,9 @@ window.app = new Vue({
       if(this.search && this.search.bookUser){ parts.push('bookUser=' + encodeURIComponent(this.search.bookUser)); }
       // quickFilter 在预约记录页使用前端叠加过滤，确保与创建日期筛选按“先筛选再过滤”顺序生效
       const q = parts.length ? ('?' + parts.join('&')) : '';
-      const d=await this.apiCall('/api/bookList' + q);
+      const d = (window.ClueCluesApi && typeof window.ClueCluesApi.bookList === 'function')
+        ? await window.ClueCluesApi.bookList(this, q)
+        : await this.apiCall('/api/bookList' + q);
       if(d.code===200){
         // 按到诊时间排序展示：优先使用 visitDate，回退到 createTime
         const toTs = (it)=>{
@@ -4146,6 +4042,9 @@ window.app = new Vue({
       }
     },
     async openDetail(item){
+      if(window.ClueDetailModule && typeof window.ClueDetailModule.openDetail === 'function'){
+        return window.ClueDetailModule.openDetail(this, item);
+      }
       try{
         this.currentDetail = item || {};
         this.detailEditing = false;
@@ -4164,7 +4063,9 @@ window.app = new Vue({
         this.showDetail = true;
         // 拉取回访记录
         if(item && item.id){
-          const d = await this.apiCall('/api/visit/' + item.id);
+          const d = (window.ClueVisitsApi && typeof window.ClueVisitsApi.listVisits === 'function')
+            ? await window.ClueVisitsApi.listVisits(this, item.id)
+            : await this.apiCall('/api/visit/' + item.id);
           if(d && d.code === 200){
             // sort visits ascending by time (oldest first)
             const list = (d.data || []).slice();
@@ -4175,7 +4076,9 @@ window.app = new Vue({
           }
           // 拉取图片
           try{
-            const imgs = await this.apiCall('/api/clueImages?clueId=' + item.id);
+            const imgs = (window.ClueVisitsApi && typeof window.ClueVisitsApi.clueImages === 'function')
+              ? await window.ClueVisitsApi.clueImages(this, item.id)
+              : await this.apiCall('/api/clueImages?clueId=' + item.id);
             if(imgs && imgs.code === 200){
               // attach to currentDetail (use Vue.set / this.$set to ensure reactivity in Vue2)
               const imgsList = imgs.data || [];
@@ -4205,7 +4108,9 @@ window.app = new Vue({
 
             const tryFetchAndUpdate = async () => {
               try{
-                const imgs2 = await this.apiCall('/api/clueImages?clueId=' + item.id);
+                const imgs2 = (window.ClueVisitsApi && typeof window.ClueVisitsApi.clueImages === 'function')
+                  ? await window.ClueVisitsApi.clueImages(this, item.id)
+                  : await this.apiCall('/api/clueImages?clueId=' + item.id);
                 if(imgs2 && imgs2.code === 200){
                   const curList = (this.currentDetail && this.currentDetail.images) ? this.currentDetail.images : [];
                   const curSig = _imagesSignature(curList);
@@ -4273,6 +4178,9 @@ window.app = new Vue({
       },
       // openAttachments 已移除 — 图片在详情模态内直接显示并在 openDetail 时加载
     closeDetail(){
+      if(window.ClueDetailModule && typeof window.ClueDetailModule.closeDetail === 'function'){
+        return window.ClueDetailModule.closeDetail(this);
+      }
       this.showDetail = false;
       this.currentDetail = {};
       this.currentVisit = [];
@@ -4284,98 +4192,22 @@ window.app = new Vue({
       try{ if(this._clueImagesTimer){ clearInterval(this._clueImagesTimer); this._clueImagesTimer = null; } }catch(e){}
     },
     openEdit(item){
-      this.editingId = item.id;
-      this.editForm = {
-        taoRen: item.taoRen || '',
-        channel: item.channel || '',
-        name: item.name || '',
-        gender: item.gender || '',
-        age: item.age || '',
-        phone: item.phone || '',
-        wechat: item.wechat || '',
-        doctor: item.doctor || '',
-        regDoctor: item.regDoctor || item.doctor || '',
-        department: item.department || '',
-        createTime: item.createTime || '',
-        content: item.content || '',
-        intent: item.intent || '',
-        visitStatus: item.visitStatus || '',
-        bookUser: item.bookUser || '',
-        book: item.book || '',
-        arrive: item.arrive || '',
-        medicineDay: item.medicineDay || '',
-        cost: item.cost || '',
-        visitMode: item.visitMode || '',
-        visitDate: item.visitDate || ''
-      };
-      this.showEditModal = true;
+      if(window.ClueEditModule && typeof window.ClueEditModule.openEdit === 'function'){
+        return window.ClueEditModule.openEdit(this, item);
+      }
     },
     closeEdit(){
-      this.showEditModal = false;
-      this.editingId = null;
-      this.editForm = {};
+      if(window.ClueEditModule && typeof window.ClueEditModule.closeEdit === 'function'){
+        return window.ClueEditModule.closeEdit(this);
+      }
     },
     selectDocEdit(){
       const doc = this.doctorList.find(d => d.name === this.editForm.doctor);
       if(doc) this.editForm.department = doc.dept || '';
     },
     async saveEdit(){
-      if(!this.editingId){
-        this.showMsg('无效的线索ID','error');
-        return;
-      }
-      if(!this.editForm.phone && !this.editForm.wechat){
-        this.showMsg('电话或微信至少保留一个','error');
-        return;
-      }
-      const updates = {
-        taoRen: this.editForm.taoRen,
-        channel: this.editForm.channel,
-        name: this.editForm.name,
-        gender: this.editForm.gender,
-        age: this.editForm.age,
-        phone: this.editForm.phone,
-        wechat: this.editForm.wechat,
-        doctor: this.editForm.doctor,
-        regDoctor: this.editForm.regDoctor,
-        department: this.editForm.department,
-        createTime: this.editForm.createTime,
-        content: this.editForm.content,
-        intent: this.editForm.intent,
-        bookUser: this.editForm.bookUser,
-        book: this.editForm.book,
-        arrive: this.editForm.arrive,
-        medicineDay: this.editForm.medicineDay,
-        cost: this.editForm.cost,
-        visitMode: this.editForm.visitMode,
-        visitDate: this.editForm.visitDate
-      };
-      // 防止非超级管理员无意提交 createTime 字段导致后端拒绝权限
-      try{
-        if(!(this.user && this.user.role === '超级管理员')){
-          delete updates.createTime;
-        }
-      }catch(e){}
-      this.isLoading = true;
-      // 强制把 taoRen 设为当前登录用户名，前端不再允许修改套电人员管理
-      try{ updates.taoRen = (this.user && this.user.username) || updates.taoRen; }catch(e){}
-      // Ensure that if book was set to 已预约 during edit, and no bookUser provided, we set bookUser to current user
-      try{ if(updates.book === '已预约' && (!updates.bookUser || updates.bookUser === '')) updates.bookUser = (this.user && this.user.username) || updates.bookUser; }catch(e){}
-      const data = await this.apiCall('/api/updateClue', {
-        method: 'POST',
-        body: JSON.stringify({ id: this.editingId, updates })
-      });
-      this.isLoading = false;
-      if(data.code === 200){
-        this.showMsg('修改成功');
-        const savedId = this.editingId;
-        this.closeEdit();
-        // 仅获取并更新该条记录，保持在页面中的位置不变
-        try{
-          const updated = await this.fetchClueById(savedId);
-          if(updated){ this.applyFetchedToLocal(updated); this.flashRow(updated.id); }
-        }catch(e){ console.warn('fetch single clue after saveEdit failed', e); }
-        await this.refreshCurrentTabAfterSave();
+      if(window.ClueEditModule && typeof window.ClueEditModule.saveEdit === 'function'){
+        return window.ClueEditModule.saveEdit(this);
       }
     },
     async openVisit(id){
@@ -4443,6 +4275,9 @@ window.app = new Vue({
       }
     },
     async getUsers(){
+      if(window.ClueSettingsModule && typeof window.ClueSettingsModule.getUsers === 'function'){
+        return window.ClueSettingsModule.getUsers(this);
+      }
       // 咨询角色无账号管理权限时，不请求 /api/users，避免 403 刷屏。
       try{
         const role = (this.user && this.user.role) ? String(this.user.role).trim() : '';
@@ -4451,7 +4286,9 @@ window.app = new Vue({
           return;
         }
       }catch(e){}
-      const d=await this.apiCall("/api/users");
+      const d = (window.ClueUsersApi && typeof window.ClueUsersApi.listUsers === 'function')
+        ? await window.ClueUsersApi.listUsers(this)
+        : await this.apiCall('/api/users');
       if(d && d.code===200){
         this.userList = d.data || [];
         // populate consultList so appointment-person dropdown can show options
@@ -4502,6 +4339,9 @@ window.app = new Vue({
     },
 
     async openAssignModal(source){
+      if(window.ClueSettingsModule && typeof window.ClueSettingsModule.openAssignModal === 'function'){
+        return window.ClueSettingsModule.openAssignModal(this, source);
+      }
       this.assignSource = source || (this.tab === 8 ? 'publicPool' : 'list');
       // 每次打开都默认回到“仅本页选择”，避免沿用上次“全部筛选结果”导致误分配
       this.assignScope = 'page';
@@ -4556,6 +4396,9 @@ window.app = new Vue({
     },
 
     closeAssignModal(){
+      if(window.ClueSettingsModule && typeof window.ClueSettingsModule.closeAssignModal === 'function'){
+        return window.ClueSettingsModule.closeAssignModal(this);
+      }
       this.showAssignModal = false;
       this.assignScope = 'page';
       this.assignSource = 'list';
@@ -4568,6 +4411,9 @@ window.app = new Vue({
     },
 
     async submitAssign(){
+      if(window.ClueSettingsModule && typeof window.ClueSettingsModule.submitAssign === 'function'){
+        return window.ClueSettingsModule.submitAssign(this);
+      }
       try{
         if(!this.assignTarget){ this.showMsg('请选择分配给的咨询账号','error'); return; }
         let body = { assignedTo: this.assignTarget, note: this.assignNote, source: this.assignSource };
@@ -4637,6 +4483,9 @@ window.app = new Vue({
       }catch(e){ console.error('onBookChange error', e); }
     },
     async addUser(){
+      if(window.ClueSettingsModule && typeof window.ClueSettingsModule.addUser === 'function'){
+        return window.ClueSettingsModule.addUser(this);
+      }
       if(!this.newUser||!this.newPwd){this.showMsg('请输入用户名和密码','error');return;}
       const data=await this.apiCall("/api/addUser",{
         method:"POST",
@@ -4649,6 +4498,9 @@ window.app = new Vue({
       }
     },
     async delUser(username){
+      if(window.ClueSettingsModule && typeof window.ClueSettingsModule.delUser === 'function'){
+        return window.ClueSettingsModule.delUser(this, username);
+      }
       if(!confirm('确定删除用户 '+username+' 吗？'))return;
       const data=await this.apiCall("/api/delUser",{
         method:"POST",
@@ -4660,11 +4512,16 @@ window.app = new Vue({
       }
     },
     async changeUserPassword(username){
+      if(window.ClueSettingsModule && typeof window.ClueSettingsModule.changeUserPassword === 'function'){
+        return window.ClueSettingsModule.changeUserPassword(this, username);
+      }
       try{
         const np = prompt('请输入 ' + username + ' 的新密码：');
         if(!np) return;
         this.isLoading = true;
-        const res = await this.apiCall('/api/changeUserPassword', { method: 'POST', body: JSON.stringify({ username, newPassword: np }) });
+        const res = (window.ClueUsersApi && typeof window.ClueUsersApi.changeUserPassword === 'function')
+          ? await window.ClueUsersApi.changeUserPassword(this, { username, newPassword: np })
+          : await this.apiCall('/api/changeUserPassword', { method: 'POST', body: JSON.stringify({ username, newPassword: np }) });
         this.isLoading = false;
         if(res && res.code === 200){
           this.showMsg('密码修改成功');
@@ -4674,6 +4531,9 @@ window.app = new Vue({
       }catch(e){ this.isLoading = false; console.error('changeUserPassword error', e); this.showMsg('修改失败','error'); }
     },
     async changeUserRole(username){
+      if(window.ClueSettingsModule && typeof window.ClueSettingsModule.changeUserRole === 'function'){
+        return window.ClueSettingsModule.changeUserRole(this, username);
+      }
       try{
         const allowed = ['咨询','医助','主管','运营','套电','超级管理员','数据'];
         let role = prompt('请输入新角色（可选：咨询,医助,主管,运营,套电,超级管理员,数据）', '主管');
@@ -4681,17 +4541,25 @@ window.app = new Vue({
         role = (role+'').trim();
         if(allowed.indexOf(role) === -1){ this.showMsg('非法角色','error'); return; }
         this.isLoading = true;
-        const res = await this.apiCall('/api/updateUserRole', { method: 'POST', body: JSON.stringify({ username, role }) });
+        const res = (window.ClueUsersApi && typeof window.ClueUsersApi.updateUserRole === 'function')
+          ? await window.ClueUsersApi.updateUserRole(this, { username, role })
+          : await this.apiCall('/api/updateUserRole', { method: 'POST', body: JSON.stringify({ username, role }) });
         this.isLoading = false;
         if(res && res.code === 200){ this.showMsg('角色修改成功'); this.getUsers(); }
         else{ this.showMsg((res && res.msg) ? res.msg : '修改失败','error'); }
       }catch(e){ this.isLoading = false; console.error('changeUserRole error', e); this.showMsg('修改失败','error'); }
     },
     async getDoctors(){
+      if(window.ClueSettingsModule && typeof window.ClueSettingsModule.getDoctors === 'function'){
+        return window.ClueSettingsModule.getDoctors(this);
+      }
       const d=await this.apiCall("/api/doctors");
       if(d.code===200)this.doctorList=d.data;
     },
     async addDoctor(){
+      if(window.ClueSettingsModule && typeof window.ClueSettingsModule.addDoctor === 'function'){
+        return window.ClueSettingsModule.addDoctor(this);
+      }
       if(!this.newDoc.name||!this.newDoc.dept){this.showMsg('请输入医生姓名和科室','error');return;}
       const payload = { name: this.newDoc.name, dept: this.newDoc.dept, operator: this.newDoc.operator };
       const data=await this.apiCall("/api/addDoctor",{
@@ -4705,9 +4573,15 @@ window.app = new Vue({
       }
     },
     startEditDoctor(d){
+      if(window.ClueSettingsModule && typeof window.ClueSettingsModule.startEditDoctor === 'function'){
+        return window.ClueSettingsModule.startEditDoctor(this, d);
+      }
       this.editingDoctor = { name: d.name, dept: d.dept || '', operator: d.operator || '' };
     },
     async saveDoctorEdit(){
+      if(window.ClueSettingsModule && typeof window.ClueSettingsModule.saveDoctorEdit === 'function'){
+        return window.ClueSettingsModule.saveDoctorEdit(this);
+      }
       if(!this.editingDoctor || !this.editingDoctor.name) return;
       try{
         // 使用相对路径让请求走当前页面的同源代理/隧道，避免浏览器针对 loopback 的 Private Network 拦截
@@ -4716,8 +4590,16 @@ window.app = new Vue({
         else { this.showMsg('更新失败','error'); }
       }catch(e){ console.error('更新医生失败', e); this.showMsg('更新失败','error'); }
     },
-    cancelEditDoctor(){ this.editingDoctor = null; },
+    cancelEditDoctor(){
+      if(window.ClueSettingsModule && typeof window.ClueSettingsModule.cancelEditDoctor === 'function'){
+        return window.ClueSettingsModule.cancelEditDoctor(this);
+      }
+      this.editingDoctor = null;
+    },
     async delDoctor(name){
+      if(window.ClueSettingsModule && typeof window.ClueSettingsModule.delDoctor === 'function'){
+        return window.ClueSettingsModule.delDoctor(this, name);
+      }
       if(!confirm('确定删除医生 '+name+' 吗？'))return;
       const data=await this.apiCall("/api/delDoctor",{
         method:"POST",
@@ -5539,10 +5421,12 @@ window.app = new Vue({
         payload.page = 1;
         payload.pageSize = Math.max(Number(this.totalCount) || 0, 1);
 
-        const listResp = await this.apiCall('/api/list', {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
+        const listResp = (window.ClueCluesApi && typeof window.ClueCluesApi.list === 'function')
+          ? await window.ClueCluesApi.list(this, payload)
+          : await this.apiCall('/api/list', {
+              method: 'POST',
+              body: JSON.stringify(payload)
+            });
         if(!listResp || listResp.code !== 200){
           this.showMsg('导出失败：读取筛选结果失败','error');
           return;
@@ -5555,10 +5439,12 @@ window.app = new Vue({
         }
 
         const ids = listRows.map(r => r && r.id).filter(Boolean);
-        const exportResp = await this.apiCall('/api/exportClues', {
-          method: 'POST',
-          body: JSON.stringify({ ids })
-        });
+        const exportResp = (window.ClueCluesApi && typeof window.ClueCluesApi.exportClues === 'function')
+          ? await window.ClueCluesApi.exportClues(this, ids)
+          : await this.apiCall('/api/exportClues', {
+              method: 'POST',
+              body: JSON.stringify({ ids })
+            });
         if(!exportResp || exportResp.code !== 200){
           this.showMsg('导出失败：读取回访记录失败','error');
           return;
@@ -5838,10 +5724,12 @@ window.app = new Vue({
       
       this.isImporting = true;
       try{
-        const result = await this.apiCall("/api/importClues", {
-          method: "POST",
-          body: JSON.stringify({clues: this.previewData, confirm: false})
-        });
+        const result = (window.ClueImportApi && typeof window.ClueImportApi.importClues === 'function')
+          ? await window.ClueImportApi.importClues(this, { clues: this.previewData, confirm: false })
+          : await this.apiCall("/api/importClues", {
+              method: "POST",
+              body: JSON.stringify({clues: this.previewData, confirm: false})
+            });
         if(result.code === 200){
           const total = this.previewData.length;
           const d = result.data || {};
@@ -5887,7 +5775,9 @@ window.app = new Vue({
       }
       this.isImporting = true;
       try{
-        const result = await this.apiCall('/api/importClues', { method: 'POST', body: JSON.stringify({ clues: rows, confirm: true }) });
+        const result = (window.ClueImportApi && typeof window.ClueImportApi.importClues === 'function')
+          ? await window.ClueImportApi.importClues(this, { clues: rows, confirm: true })
+          : await this.apiCall('/api/importClues', { method: 'POST', body: JSON.stringify({ clues: rows, confirm: true }) });
         if(result && result.code === 200){
           const total = rows.length;
           const d = result.data || {};

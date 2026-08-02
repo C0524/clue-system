@@ -1,0 +1,19 @@
+/* 统计页专属 */
+.stat-controls{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.stat-cards{display:flex;flex-direction:column;gap:16px}
+.stat-card{flex:none;width:100%;background:var(--card-bg);border-radius:8px;padding:12px;box-shadow:var(--card-shadow)}
+.stat-card .card-header{font-weight:700;color:var(--text-title);border-bottom:1px solid rgba(0,0,0,0.04);padding-bottom:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.stat-card .card-header .title{font-size:15px}
+.stat-card .card-body{padding-top:6px}
+.stat-table{table-layout:fixed;}
+.stat-table th,.stat-table td{text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.stat-card .stat-table{table-layout:auto}
+.stat-card .stat-table th{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;word-break:normal}
+.stat-card .stat-table td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat-table td.num{text-align:center}
+.stat-table td.red{color:var(--danger);font-weight:700}
+.stat-table tr.totals td{font-weight:700;background:#fbfdfe}
+.drug-cost-table .group-sep-right{border-right:2px solid #c8d3e1 !important;}
+.month-day-col{width:36px;min-width:36px;max-width:36px;padding:3px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.stat-card table{margin:8px 0}
+.stat-title{font-size:16px;font-weight:bold;margin:25px 0 10px 0;color:var(--primary);}

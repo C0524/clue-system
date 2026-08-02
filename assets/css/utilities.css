@@ -1,0 +1,34 @@
+/* 状态与工具类 */
+.status-success{color:#0a8f3b;font-weight:600}
+.status-danger{color:#d93434;font-weight:600}
+.status-muted{color:#666}
+
+.del{ 
+  color:var(--danger); 
+  cursor:pointer; 
+  background:transparent !important; 
+  border:none !important; 
+  padding:4px !important; 
+  font-size:16px !important; 
+  line-height:1; 
+}
+.del:hover{filter:brightness(0.95)}
+
+.saved-highlight{animation:savedHighlight 2s ease}
+.linked-clue-row{background:rgba(217,52,52,0.08)!important;color:#a61b1b}
+.linked-child-count{font-size:12px;font-weight:600;color:#a61b1b;margin-left:2px}
+@keyframes savedHighlight{0%{background:#fff9c4}60%{background:transparent}}
+
+.restored-flag{color:#d93434;font-weight:700;font-size:12px;line-height:1.2;margin-bottom:2px}
+.loading{display:inline-block;margin-left:10px;color:var(--text-hint);}
+.select-empty{color:var(--text-hint)}
+.select-normal{color:var(--text-body)}
+
+/* 全局浮层提示 */
+#toast-container{position:fixed;top:20px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:8px}
+.toast{background:rgba(0,0,0,0.8);color:#fff;padding:10px 14px;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,0.12);font-size:13px;opacity:0.98}
+.toast.success{background:var(--primary)}
+.toast.error{background:var(--danger)}
+
+/* 过期提示浮层 */
+.expired-tooltip{position:fixed;z-index:99999;max-width:320px;background:#222;color:#fff;padding:8px 10px;border-radius:6px;box-shadow:0 8px 18px rgba(0,0,0,0.2);font-size:13px;line-height:1.4}

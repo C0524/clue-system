@@ -1,0 +1,9 @@
+/* 线索页与列表页专属 */
+.form-row{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:8px}
+.form-row .input{flex:1;min-width:140px;margin-bottom:0}
+.input.small{flex:0 0 120px}
+.input.wide{flex:2}
+.detail-box .form-row{display:block}
+
+/* 表格字体微调（话单/预约） */
+.tab-table th,.tab-table td{font-size:13px;padding:6px 6px}

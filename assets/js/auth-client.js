@@ -16,10 +16,13 @@
       vm.loginError = '用户名和密码不能为空';
       return;
     }
-    const data = await vm.apiCall('/api/login', {
-      method: 'POST',
-      body: JSON.stringify({ username: vm.loginUser, password: vm.loginPwd }),
-    });
+    const payload = { username: vm.loginUser, password: vm.loginPwd };
+    const data = global.ClueAuthApi && typeof global.ClueAuthApi.login === 'function'
+      ? await global.ClueAuthApi.login(vm, payload)
+      : await vm.apiCall('/api/login', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
     if (data.code === 200) {
       vm.isLogin = true;
       vm.user = { username: data.data.username, role: normalizeRole(data.data.role), auth: data.data.auth };

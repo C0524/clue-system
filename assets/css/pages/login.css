@@ -1,0 +1,2 @@
+/* 登录页 */
+.login{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:360px;padding:20px;background:var(--card-bg);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}

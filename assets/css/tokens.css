@@ -1,0 +1,27 @@
+:root{
+  --primary:#1677ff;
+  --primary-hover:#135fd6;
+  --success:#36d399;
+  --disabled:#9ca3af;
+  --danger:#f87272;
+  --page-bg:#F5FFFA;
+  --card-bg:#ffffff;
+  --table-row-bg:#f9fafb;
+  --table-hover:#f3f4f6;
+  --text-title:#1f2937;
+  --text-body:#4b5563;
+  --text-hint:#9ca3af;
+  --card-radius:8px;
+  --card-shadow:0 6px 16px rgba(16,24,40,0.03);
+  --control-radius:6px;
+  --control-height:36px;
+  --detail-label-w:120px;
+  --detail-mid-w:220px;
+}
+
+@media (max-width:640px){
+  :root{
+    --detail-label-w:90px;
+    --detail-mid-w:160px;
+  }
+}

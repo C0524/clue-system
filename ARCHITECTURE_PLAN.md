@@ -223,3 +223,85 @@ clue-system/
 5. 增加最小接口回归测试：`/api/login`、`/api/list`、`/api/updateClue`。
 
 完成以上 5 项后，代码结构会显著清晰，且不会影响现网使用方式。
+
+---
+
+## 9. 当前执行进度快照（2026-08-02）
+
+### 已完成
+- 仓库清理（归档优先）：已将临时脚本、一次性输出、历史调试日志归档到 `archive/cleanup-2026-08-02/`，并新增归档说明 `archive/cleanup-2026-08-02/README.md`。
+- P1 壳层拆分（第一步）：
+   - 新增 `backend/src/app.js`（兼容入口，复用现有 Express app）。
+   - 新增 `backend/src/server.js`（兼容启动入口，复用现有启动逻辑）。
+   - 根入口 `server.js` 已抽出 `startServer()` 并导出 `{ app, startServer }`，保留原 `node server.js` 启动方式。
+   - 新增 `backend/src/config/db.js`，下沉 MySQL 连接配置与时区/日期字符串策略。
+   - 新增 `backend/src/common/logger/access-debug.js`，下沉访问采样日志与导入调试日志逻辑。
+   - 新增 `backend/src/common/utils/time.js` 与 `backend/src/common/utils/expired.js`，下沉时间格式化与过期判定纯函数。
+   - 新增 `backend/src/common/storage/r2.js`，下沉 R2 客户端初始化、桶名/域名解析与对象 URL 构造。
+   - `server.js` 已改为引用上述模块，减少入口文件内聚复杂度且保持行为不变。
+- P3 前端 API 拆分（第一步）：
+   - 新增 `assets/js/http-client.js` 作为统一 HTTP 层。
+   - 新增 `assets/js/auth-api.js` 作为认证 API 层。
+   - 新增 `assets/js/clues-api.js` 与 `assets/js/users-api.js`。
+   - 新增 `assets/js/visits-api.js`、`assets/js/import-api.js`、`assets/js/stats-api.js`。
+   - `assets/js/auth-client.js` 登录逻辑已改为优先调用 `auth-api`（保留旧回退逻辑）。
+   - `index.html` 中 `getList/getPublicPoolList/getBookList/getUsers/导出列表/修改密码/修改角色` 已优先改走 API 模块（保留回退逻辑）。
+   - `index.html` 中回访、复诊排班、图片查询删除、导入确认、未回访统计等关键调用已优先改走 API 模块（保留回退逻辑）。
+   - 新增 `assets/js/doctors-api.js`，并扩展 `users-api/clues-api` 长尾接口封装。
+   - `settings-module` 内用户/医生管理与分配相关接口已优先改走 API 模块（保留回退逻辑）。
+   - `index.html` 已接入新脚本，不影响原有页面行为。
+
+- P5 前端业务模块化（第一步）：
+   - 新增 `assets/js/modules/revisit-module.js`，承接复诊/回访核心业务方法。
+   - `index.html` 中 `getRevisitList/getExpertSchedule/openScheduleRevisit/submitScheduleRevisit/openRevisitVisit/submitRevisitVisit/submitDetailRevisit` 已改为委托模块执行。
+   - 页面保留原方法入口，行为兼容，便于逐步迁移其余模块。
+   - 新增 `assets/js/modules/clue-edit-module.js`，承接线索编辑弹窗核心方法。
+   - `index.html` 中 `openEdit/closeEdit/saveEdit/fetchAndApplyCurrentDetail` 已改为委托模块执行。
+   - 新增 `assets/js/modules/clue-detail-module.js`，承接线索详情核心方法。
+   - `index.html` 中 `openDetail/closeDetail/saveDetailEdits` 已改为优先委托模块执行（保留回退实现）。
+   - 新增 `assets/js/modules/settings-module.js`（第一批），承接设置域用户/医生管理核心方法。
+   - `index.html` 中 `getUsers/changeUserPassword/changeUserRole/getDoctors` 已改为优先委托模块执行（保留回退实现）。
+   - `settings-module` 第二批：`openAssignModal/closeAssignModal/submitAssign` 已改为优先委托模块执行（保留回退实现）。
+   - `settings-module` 第三批：`addUser/delUser/addDoctor/startEditDoctor/saveDoctorEdit/cancelEditDoctor/delDoctor` 已改为优先委托模块执行（保留回退实现）。
+
+- P6 最小回归脚本（第一步）：
+   - 新增 `tests/smoke-api.js`，覆盖 `/api/_health`、`/api/login`、`/api/list`、`/api/updateClue` 主链路。
+   - 新增 npm 脚本 `test:smoke`（`node tests/smoke-api.js`）。
+
+- P4 CSS 分层文件化（第一步）：
+   - 新增 `assets/css/tokens.css`，承接主题与详情布局变量（含移动端变量覆盖）。
+   - 新增 `assets/css/components.css`，承接表单/按钮/弹窗/消息等通用组件样式。
+   - `index.html` 已按 `tokens -> components -> main` 顺序接入，`main.css` 已移除对应重复样式块。
+
+- P4 CSS 分层文件化（第二步）：
+   - 新增 `assets/css/layout.css`，承接全局布局、导航、筛选栏、日期选择器与相关过渡动画样式。
+   - `index.html` 已按 `tokens -> components -> layout -> main` 顺序接入。
+   - `main.css` 已移除对应重复样式块，保持“拆文件不改表现”。
+
+- P4 CSS 分层文件化（第三步）：
+   - 新增 `assets/css/base.css`，承接基础标题/提示文字、表格基础样式与表单基础规则。
+   - 新增 `assets/css/utilities.css`，承接状态类与工具类（高亮、删除按钮、loading、select 文本态等）。
+   - `index.html` 已按 `tokens -> base -> components -> layout -> utilities -> main` 顺序接入。
+   - `main.css` 已移除对应重复样式块，继续保持“拆文件不改表现”。
+
+- P4 CSS 分层文件化（第四步）：
+   - 新增 `assets/css/pages/login.css`、`assets/css/pages/clue-list.css`、`assets/css/pages/visits.css`。
+   - `index.html` 已接入 pages 样式层，顺序为 `tokens -> base -> components -> layout -> utilities -> pages/* -> main`。
+   - `main.css` 已移除登录页、线索页、复诊详情/坐诊表相关重复样式块。
+
+- P4 CSS 分层文件化（第五步/收尾）：
+   - 新增 `assets/css/pages/stats.css`、`assets/css/pages/settings.css`，承接统计页与设置/日志页样式。
+   - 将通用卡片/表格规则并入 `components.css`，将 toast/tooltip 规则并入 `utilities.css`。
+   - `main.css` 已收敛为兼容占位文件，避免重复定义并保留回滚入口。
+
+### 进行中
+- P1 后端壳层拆分：入口层已建立，但 `server.js` 仍偏重，后续继续下沉 `config/common/utils`。
+- P3 前端 API 与状态拆分：已完成登录、列表、公海列表、预约列表、用户列表、用户管理、回访与导入确认关键接口拆分；其余长尾接口待拆分。
+
+### 未开始或待深化
+- P2 后端业务三层化（controller/service/repository）。
+- P4 CSS 分层文件化（已基本完成：tokens/base/components/layout/utilities/pages 已落地，main.css 已收敛占位）。
+- P5 前端业务模块化（按 login/clue-list/visits/settings 切块）。
+- P5 前端业务模块化（已起步：复诊模块、线索编辑模块、线索详情模块、设置模块三批已拆出；剩余跨域零散长尾逻辑待持续收敛）。
+- P6 契约与关键接口测试（已起步：最小 smoke 脚本已就位，待接入测试账号执行）。
+- P7 灰度发布与观测报告流程。

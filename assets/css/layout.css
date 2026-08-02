@@ -1,0 +1,220 @@
+/* 全局布局 */
+html,body{height:100%;}
+*,*::before,*::after{box-sizing:border-box;}
+/* 页面水平内边距（左右统一 28px），确保内容不贴边 */
+body{background:var(--page-bg, #ffffff);padding:0 28px;font-family:Arial,Helvetica,sans-serif;color:var(--text-body, #4b5563);font-size:14px}
+
+/* 渠道分布弹窗 */
+.channel-popup{position:absolute;background:#fff;border:1px solid rgba(0,0,0,0.08);padding:8px;border-radius:6px;box-shadow:0 8px 18px rgba(16,24,40,0.12);z-index:2200;min-width:160px;font-size:13px}
+.channel-popup .row{display:flex;justify-content:space-between;padding:6px 8px}
+.channel-popup .row + .row{border-top:1px dashed rgba(0,0,0,0.04)}
+.channel-popup .title{font-weight:600;margin-bottom:6px}
+
+/* 顶部导航与下方内容垂直间距 */
+.top{margin-bottom:20px;}
+/* 各功能模块之间垂直间距 */
+.main > *{margin-bottom:24px;}
+
+/* 卡片式统一样式：表单、表格、功能区使用白色卡片、圆角、浅阴影、内边距 */
+.search-box,
+.tab,
+.pagination,
+.card,
+.detail-box,
+.login,
+.tab-table-wrapper,
+.stat-table-wrapper{
+  background:var(--card-bg);
+  border-radius:var(--card-radius);
+  box-shadow:var(--card-shadow);
+  padding:16px;
+}
+
+/* 导航栏样式：纯白背景 + 轻微底部阴影，与内容区区分 */
+.navbar{background:var(--card-bg);box-shadow:0 2px 8px rgba(0,0,0,0.06);padding:12px;border-radius:8px;margin-bottom:18px}
+.navbar .top{background:transparent;padding:0;margin:0;display:flex;align-items:center;justify-content:space-between}
+.navbar .tab{margin-top:8px;background:transparent;padding:0}
+
+/* 设置下拉菜单 */
+.settings{position:relative}
+.settings-btn{background:transparent;color:var(--text-body);border:1px solid rgba(0,0,0,0.06);padding:6px 10px;border-radius:6px;cursor:pointer}
+.settings-menu{position:absolute;right:0;top:calc(100% + 8px);min-width:160px;background:var(--card-bg);box-shadow:0 8px 20px rgba(0,0,0,0.08);border-radius:8px;z-index:50;padding:8px}
+.settings-item{padding:8px 10px;border-radius:6px;cursor:pointer;color:var(--text-body)}
+.settings-item:hover{background:var(--table-hover)}
+.settings-divider{height:1px;background:rgba(0,0,0,0.06);margin:6px 0}
+/* 使用 Vue 控制设置菜单显示，移除 hover 展开规则 */
+
+/* 如果表格直接作为卡片展示，移除表格默认外边距并保持内部单元格样式 */
+.tab-table{width:100%;border-collapse:collapse;margin:0;padding:0;background:transparent;box-shadow:none}
+.stat-table{width:100%;border-collapse:collapse;margin:0;padding:0;background:transparent;box-shadow:none}
+
+/* 保证连续卡片的垂直间距 */
+.card + .card{margin-top:24px}
+#app{min-height:100vh;}
+.login h2{text-align:center;margin-bottom:20px;font-size:16px;color:var(--text-title);}
+
+.row-actions{position:fixed;right:24px;top:86px;z-index:2000;background:var(--card-bg);box-shadow:0 10px 30px rgba(16,24,40,0.08);border-radius:8px;padding:12px;min-width:300px}
+.row-actions .inline-detail textarea{width:100%;box-sizing:border-box}
+
+/* 动画：淡入/向下位移效果 */
+.fade-slide-enter-active,.fade-slide-leave-active{transition:opacity .18s ease,transform .18s ease}
+.fade-slide-enter{opacity:0;transform:translateY(-6px) scale(.98)}
+.fade-slide-enter-to{opacity:1;transform:translateY(0) scale(1)}
+.fade-slide-leave{opacity:1;transform:translateY(0) scale(1)}
+.fade-slide-leave-to{opacity:0;transform:translateY(-6px) scale(.98)}
+
+.main{background:transparent;padding:15px;border-radius:10px;}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+.tab{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.tab{display:flex;gap:8px;flex-wrap:wrap}
+.tab span{padding:8px 14px;background:var(--table-row-bg);border-radius:20px;cursor:pointer;color:var(--text-body);transition:background-color .15s ease}
+.tab span:hover{background:var(--table-hover)}
+.tab span.on{background:var(--primary);color:#fff}
+
+.search-box{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center;}
+.search-box{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px;align-items:center}
+.search-box .input{flex:1;min-width:160px}
+.search-box button{white-space:nowrap}
+/* 紧凑的搜索区动作分组 */
+.search-box .action-group{display:flex;gap:8px;align-items:center}
+.search-box .action-group button{min-width:86px}
+/* 当需要把按钮放在单独一行与搜索输入对齐时使用 */
+.search-box .action-group.full-row{flex:0 0 100%;justify-content:flex-start;margin-top:4px}
+.action-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+
+/* 筛选栏统一：单行、统一控件尺寸、统一按钮尺寸并左对齐 */
+.search-box{
+  flex-wrap:nowrap;
+  align-items:flex-end;
+  overflow-x:auto;
+  overflow-y:hidden;
+}
+.search-box .input{
+  flex:0 0 96px !important;
+  min-width:96px !important;
+  max-width:96px;
+  margin-bottom:0;
+}
+.search-box .input label{
+  display:none;
+}
+.search-box .input input,
+.search-box .input select,
+.search-box .input .js-range-picker,
+.search-box .input .js-single-picker{
+  height:28px;
+  min-height:28px;
+  padding:0 8px;
+  font-size:12px;
+  color:#6b7280;
+}
+/* ID 筛选框单独略加宽，避免占位文案显示不全 */
+.search-box .input.id-filter{
+  flex:0 0 118px !important;
+  min-width:118px !important;
+  max-width:118px;
+}
+.search-box .action-group,
+.search-box .action-group.full-row,
+.search-box .action-toolbar{
+  flex:0 0 auto !important;
+  display:flex;
+  flex-wrap:nowrap;
+  align-items:flex-end;
+  justify-content:flex-start !important;
+  margin-top:0 !important;
+}
+.search-box .action-group button,
+.search-box .action-toolbar button,
+.search-box .action-group > div > button,
+.search-box .action-toolbar > div > button{
+  height:26px;
+  min-height:26px;
+  min-width:72px;
+  padding:0 8px;
+  font-size:12px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.search-box .date-range-toolbar{
+  height:28px;
+  padding:0 5px;
+  flex-wrap:nowrap;
+}
+.search-box .date-range-toolbar .range-label{
+  font-size:10px;
+  color:var(--text-hint);
+  font-weight:500;
+}
+.search-box .date-range-toolbar select{
+  height:22px;
+  min-width:74px;
+  font-size:12px;
+  color:#6b7280;
+}
+.search-box .date-range-toolbar .js-range-picker{
+  width:130px;
+  height:22px;
+  font-size:12px;
+  color:#6b7280;
+}
+
+/* 筛选区分两行：上行为搜索/筛选，下行为其它操作按钮 */
+.search-box.split-row{
+  flex-wrap:wrap;
+  overflow:visible;
+}
+.search-box.split-row .search-main-row{
+  display:flex;
+  flex:0 0 100%;
+  flex-wrap:nowrap;
+  align-items:flex-end;
+  gap:12px;
+  overflow-x:auto;
+  overflow-y:hidden;
+}
+.search-box.split-row .input > label{display:none !important;}
+.search-box.split-row .date-range-toolbar .range-label{display:none !important;}
+.search-box.split-row .search-extra-actions{
+  display:flex;
+  flex:0 0 100%;
+  align-items:center;
+  justify-content:flex-start;
+  gap:8px;
+  margin-top:6px;
+}
+.search-box.split-row .search-extra-actions button{
+  height:26px;
+  min-height:26px;
+  min-width:72px;
+  padding:0 8px;
+  font-size:12px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+/* ===== 日历选择器统一样式 ===== */
+.date-range-toolbar{display:flex;gap:6px;align-items:center;background:#f8fafc;border:1px solid #e5e7eb;border-radius:6px;padding:5px 10px}
+.date-range-toolbar .range-label{font-weight:600;color:var(--text-body);white-space:nowrap}
+
+/* 范围选择器：输入框宽度可以容纳 "2026-06-01 至 2026-07-02" */
+.date-range-toolbar .js-range-picker{width:200px;cursor:pointer}
+/* 脱离 toolbar 的单日选择器（如弹窗内、编辑行内） */
+.js-single-picker{cursor:pointer}
+
+/* 范围/单日选择器公共输入样式 */
+.js-range-picker,
+.js-single-picker{height:32px;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;background:#fff;box-sizing:border-box;font-size:13px;color:var(--text-body);width:100%}
+.js-range-picker:hover,.js-single-picker:hover{border-color:#1677ff}
+.js-range-picker:focus,.js-single-picker:focus{outline:none;border-color:#1677ff;box-shadow:0 0 0 2px rgba(22,119,255,.15)}
+
+/* 范围选择器弹出面板微调：字体与整体一致 */
+.flatpickr-calendar{font-family:inherit;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.flatpickr-day.selected,.flatpickr-day.startRange,.flatpickr-day.endRange,
+.flatpickr-day.selected:hover,.flatpickr-day.startRange:hover,.flatpickr-day.endRange:hover{background:#1677ff;border-color:#1677ff}
+.flatpickr-day.inRange{background:rgba(22,119,255,.12);border-color:transparent}
+.flatpickr-day.today{border-color:#1677ff}
+/* ================================ */
+.quick-filter-btn{background:#eef2f7;color:#1f2937;border:1px solid #d8dee9}
+.quick-filter-btn.quick-active{background:#1677ff;color:#fff;border-color:#1677ff}
