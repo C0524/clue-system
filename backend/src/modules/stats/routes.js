@@ -152,7 +152,7 @@ function registerStatsRoutes(deps) {
         const ch = c && c.channel ? String(c.channel).trim() : '';
         return EXCLUDED_OPERATE_CHANNELS.has(ch);
       };
-      const EXCLUDED_MONTH_GOAL_CHANNELS = new Set(['医带患', '导入']);
+      const EXCLUDED_MONTH_GOAL_CHANNELS = new Set(['医带患', '导入', '介绍']);
       const isMonthGoalChannelExcluded = (c) => {
         const ch = c && c.channel ? String(c.channel).trim() : '';
         return EXCLUDED_MONTH_GOAL_CHANNELS.has(ch);
@@ -201,6 +201,10 @@ function registerStatsRoutes(deps) {
       };
       const isPersonnelConsumer = (c) => {
         return isConsumableMedicineDay(c && c.medicineDay) || hasTreatmentFeeConsumption(c);
+      };
+      const isArrived = (c) => {
+        const a = c && c.arrive ? String(c.arrive).trim() : '';
+        return a === '已到诊' || a === '已到院';
       };
       const isExcludedForPersonnelSales = (c) => {
         if (isOperateChannelExcluded(c)) return true;
@@ -417,10 +421,46 @@ function registerStatsRoutes(deps) {
         const monthNoPrescriptionOrNoPay = monthArrivedRows.filter((c) => c.medicineDay === '未开药' || c.medicineDay === '未支付').length;
         const monthNoPrescription = monthArrivedRows.filter((c) => c.medicineDay === '未开药').length;
         const monthNoPay = monthArrivedRows.filter((c) => c.medicineDay === '未支付').length;
+        const getPatientKey = (c) => {
+          const phone = c && c.phone ? String(c.phone).trim() : '';
+          if (phone) return 'phone:' + phone;
+          const wx = c && c.wx ? String(c.wx).trim() : '';
+          if (wx) return 'wx:' + wx;
+          const name = c && c.name ? String(c.name).trim() : '';
+          if (name) return 'name:' + name;
+          const id = c && (c.id || c.id === 0) ? String(c.id).trim() : '';
+          if (id) return 'id:' + id;
+          const ts = c && c.createTime ? String(c.createTime).trim() : '';
+          return ts ? 'ts:' + ts : '';
+        };
+        const countRefundPatients = (rows) => {
+          const set = new Set();
+          for (const row of rows || []) {
+            const key = getPatientKey(row);
+            if (key) set.add(key);
+          }
+          return set.size;
+        };
+        const initialRefundRows = monthBookedRows.filter((c) => !isRevisitRecord(c) && (Number(c.refundAmount) || 0) > 0);
+        const revisitRefundRows = monthBookedRows.filter((c) => isRevisitRecord(c) && (Number(c.refundAmount) || 0) > 0);
+        const initialRefundCount = countRefundPatients(initialRefundRows);
+        const revisitRefundCount = countRefundPatients(revisitRefundRows);
         const initialRefundAmount = monthBookedRows.filter((c) => !isRevisitRecord(c)).reduce((s, x) => s + (Number(x.refundAmount) || 0), 0);
         const revisitRefundAmount = monthBookedRows.filter((c) => isRevisitRecord(c)).reduce((s, x) => s + (Number(x.refundAmount) || 0), 0);
         const refundAmount = initialRefundAmount + revisitRefundAmount;
         const refundCount = monthBookedRows.filter((c) => (Number(c.refundAmount) || 0) > 0).length;
+        const refundPatientCount = (() => {
+          const set = new Set();
+          for (const row of initialRefundRows) {
+            const key = getPatientKey(row);
+            if (key) set.add(key);
+          }
+          for (const row of revisitRefundRows) {
+            const key = getPatientKey(row);
+            if (key) set.add(key);
+          }
+          return set.size;
+        })();
 
         const initialRawCost = monthAllFull.filter((c) => c.book === '已预约' && !isRevisitRecord(c) && (() => {
           const t = recTime(c);
@@ -513,8 +553,19 @@ function registerStatsRoutes(deps) {
           monthNoPay,
           monthInitialDrugTaken,
           monthRevisitDrugTaken,
+          initialRefundCount,
+          initialRefundAmount,
+          revisitRefundCount,
+          revisitRefundAmount,
           refundCount,
+          refundPatientCount,
           refundAmount,
+          initialRawCost,
+          revisitRawCost,
+          totalRawCost: initialRawCost + revisitRawCost,
+          initialNetCost: initialCost,
+          revisitNetCost: revisitCost,
+          totalNetCost: totalCost,
           initialCost,
           revisitCost,
           totalCost,
@@ -562,12 +613,22 @@ function registerStatsRoutes(deps) {
         const all = clues.filter((c) => c.taoRen === tao.name);
         const t = all.filter((c) => toTime(c.createTime) >= tdTs && !isTodayClueChannelExcluded(c));
         const m = all.filter((c) => toTime(c.createTime) >= mn && toTime(c.createTime) < monthEndTs);
+        const monthChannelMap = {};
+        const monthDoctorMap = {};
+        m.forEach((c) => {
+          const ch = (c.channel && String(c.channel).trim()) || '未知';
+          monthChannelMap[ch] = (monthChannelMap[ch] || 0) + 1;
+          const doc = (c.doctor && String(c.doctor).trim()) || '未知';
+          monthDoctorMap[doc] = (monthDoctorMap[doc] || 0) + 1;
+        });
         return {
           name: tao.name,
           todayTotal: t.length,
           todayValid: t.filter((c) => isValidIntent(c.intent)).length,
           monthTotal: m.length,
           monthValid: m.filter((c) => isValidIntent(c.intent)).length,
+          monthChannelMap,
+          monthDoctorMap,
         };
       });
 
@@ -592,32 +653,43 @@ function registerStatsRoutes(deps) {
         const todayBookedRows = self.filter((c) => toTime(c.createTime) >= tdTs && c.book === '已预约');
         const todayBookInitialCount = todayBookedRows.filter((c) => !isConsultRevisitRecord(c)).length;
         const todayBookRevisitCount = todayBookedRows.filter((c) => isConsultRevisitRecord(c)).length;
+        const monthBookedRowsAll = self.filter((c) => isBookedInMonthByVisitDate(c));
+        const monthArriveCountAll = monthBookedRowsAll.filter((c) => isArrived(c)).length;
         const monthBookedRows = self.filter((c) => isBookedInMonthByVisitDate(c) && !isOperateChannelExcluded(c));
         const monthBookCount = monthBookedRows.length;
         const monthBookInitialCount = monthBookedRows.filter((c) => !isConsultRevisitRecord(c)).length;
         const monthBookRevisitCount = monthBookedRows.filter((c) => isConsultRevisitRecord(c)).length;
+        const monthArriveCount = monthBookedRows.filter((c) => isArrived(c)).length;
+        const monthBookCountAll = monthBookedRowsAll.length;
         const monthConsumerRows = monthBookedRows.filter((c) => isPersonnelConsumer(c));
         const monthConsumerCount = monthConsumerRows.length;
+        const monthConsumerCountAll = monthBookedRowsAll.filter((c) => isPersonnelConsumer(c)).length;
         const monthBaseSales = monthBookedRows
           .filter((c) => !isExcludedForPersonnelSales(c))
           .reduce((sum, c) => sum + (Number(c.cost) || 0), 0);
         const monthConsumerTreatmentFee = monthConsumerRows.reduce((sum, c) => sum + (Number(c.treatmentFee) || 0), 0);
         const monthSales = monthBaseSales + monthConsumerTreatmentFee;
-        const monthUnitSales = monthBookCount > 0 ? Number((monthSales / monthBookCount).toFixed(2)) : 0;
+        const monthUnitSales = monthArriveCount > 0 ? Number((monthSales / monthArriveCount).toFixed(2)) : 0;
         const monthDealRate = monthBookCount > 0 ? Number(((monthConsumerCount / monthBookCount) * 100).toFixed(1)) : 0;
+        const monthDealRateAll = monthBookCountAll > 0 ? Number(((monthConsumerCountAll / monthBookCountAll) * 100).toFixed(1)) : 0;
         bookUserStat[name] = {
           name,
           todayBook: todayBookedRows.length,
           todayBookInitialCount,
           todayBookRevisitCount,
           monthBookCount,
+          monthBookCountAll,
           monthBookInitialCount,
           monthBookRevisitCount,
+          monthArriveCountAll,
+          monthArriveCount,
           monthConsumerCount,
+          monthConsumerCountAll,
           monthConsumerTreatmentFee,
           monthSales,
           monthUnitSales,
           monthDealRate,
+          monthDealRateAll,
         };
       }
 
@@ -643,12 +715,10 @@ function registerStatsRoutes(deps) {
         const monthZhuanWei = monthAll.filter((c) => c.intent === '已加微').length;
         const monthZhuanWeiRate = monthEffective > 0 ? Number(((monthZhuanWei / monthEffective) * 100).toFixed(1)) : 0;
         const b = bookUserStat[t.name] || {};
-        // 咨询统计口径：当月初诊预约=创建时间在当月且挂号时间(bookTime)在当月的初诊已预约线索
+        // 咨询统计口径：当月初诊预约=挂号时间(bookTime)在当月的初诊已预约线索
         const monthBookInitial = all.filter((c) => {
           if (!c || c.book !== '已预约') return false;
           if (isConsultRevisitRecord(c)) return false;
-          const createTs = toTime(c.createTime);
-          if (!(createTs >= mn && createTs < monthEndTs)) return false;
           if (!c.bookTime) return false;
           const bookTs = toTime(('' + c.bookTime).indexOf(':') === -1 ? c.bookTime + ' 00:00:00' : c.bookTime);
           return bookTs >= mn && bookTs < monthEndTs;
@@ -656,6 +726,21 @@ function registerStatsRoutes(deps) {
         const monthBookRevisit = Number(b.monthBookRevisitCount) || 0;
         const monthBookTotal = monthBookInitial + monthBookRevisit;
         const monthBookRate = monthEffective > 0 ? Number(((monthBookInitial / monthEffective) * 100).toFixed(1)) : 0;
+        const monthChannelMap = {};
+        const monthDoctorMap = {};
+        if (!isConsultRole) {
+          monthAll.forEach((c) => {
+            const ch = (c.channel && String(c.channel).trim()) || '未知';
+            monthChannelMap[ch] = (monthChannelMap[ch] || 0) + 1;
+            const doc = (c.doctor && String(c.doctor).trim()) || '未知';
+            monthDoctorMap[doc] = (monthDoctorMap[doc] || 0) + 1;
+          });
+        }
+        const monthArriveCount = isConsultRole ? (Number(b.monthArriveCountAll) || 0) : (Number(b.monthArriveCount) || 0);
+        const monthSales = Number(b.monthSales) || 0;
+        const monthUnitSales = monthArriveCount > 0 ? Number((monthSales / monthArriveCount).toFixed(2)) : 0;
+        const monthConsumerCount = isConsultRole ? (Number(b.monthConsumerCountAll) || 0) : (Number(b.monthConsumerCount) || 0);
+        const monthDealRate = monthBookTotal > 0 ? Number(((monthConsumerCount / monthBookTotal) * 100).toFixed(1)) : 0;
         return {
           name: t.name,
           role,
@@ -674,13 +759,16 @@ function registerStatsRoutes(deps) {
           monthBook: Number(b.monthBookCount) || 0,
           monthBookInitial,
           monthBookRevisit,
+          monthArriveCount,
           monthBookTotal,
           monthBookRate,
-          monthConsumerCount: Number(b.monthConsumerCount) || 0,
+          monthConsumerCount,
           monthConsumerTreatmentFee: Number(b.monthConsumerTreatmentFee) || 0,
-          monthSales: Number(b.monthSales) || 0,
-          monthUnitSales: Number(b.monthUnitSales) || 0,
-          monthDealRate: Number(b.monthDealRate) || 0,
+          monthSales,
+          monthUnitSales,
+          monthDealRate,
+          monthChannelMap,
+          monthDoctorMap,
         };
       });
 
@@ -694,6 +782,7 @@ function registerStatsRoutes(deps) {
       const bookSetMonth = new Set();
       const bookSetMonthInitial = new Set();
       const bookSetMonthRevisit = new Set();
+      const bookSetMonthArrive = new Set();
       const bookSetMonthConsumers = new Set();
       let monthSalesTotal = 0;
       let monthConsumerTreatmentFeeTotal = 0;
@@ -726,6 +815,7 @@ function registerStatsRoutes(deps) {
           bookSetMonth.add(id);
           if (isConsultRevisitRecord(c)) bookSetMonthRevisit.add(id);
           else bookSetMonthInitial.add(id);
+          if (isArrived(c)) bookSetMonthArrive.add(id);
           if (!isExcludedForPersonnelSales(c)) monthSalesTotal += Number(c.cost) || 0;
           if (isPersonnelConsumer(c)) {
             bookSetMonthConsumers.add(id);
@@ -735,8 +825,9 @@ function registerStatsRoutes(deps) {
       }
       monthSalesTotal += monthConsumerTreatmentFeeTotal;
       const totalMonthBook = bookSetMonth.size;
+      const totalMonthArrive = bookSetMonthArrive.size;
       const totalMonthConsumers = bookSetMonthConsumers.size;
-      const totalMonthUnitSales = totalMonthBook > 0 ? Number((monthSalesTotal / totalMonthBook).toFixed(2)) : 0;
+      const totalMonthUnitSales = totalMonthArrive > 0 ? Number((monthSalesTotal / totalMonthArrive).toFixed(2)) : 0;
       const totalMonthDealRate = totalMonthBook > 0 ? Number(((totalMonthConsumers / totalMonthBook) * 100).toFixed(1)) : 0;
       const personnelTotals = {
         taoTotals: {
@@ -752,6 +843,7 @@ function registerStatsRoutes(deps) {
           monthBook: totalMonthBook,
           monthBookInitial: bookSetMonthInitial.size,
           monthBookRevisit: bookSetMonthRevisit.size,
+          monthArriveCount: totalMonthArrive,
           monthConsumerCount: totalMonthConsumers,
           monthSales: monthSalesTotal,
           monthUnitSales: totalMonthUnitSales,
@@ -828,7 +920,17 @@ function registerStatsRoutes(deps) {
       const monthGoalStat = doctors.map((doc) => {
         const todayAll = clues.filter((c) => getIntentDoctor(c) === doc.name && toTime(c.createTime) >= tdTs && !isRevisitRecord(c) && !isTodayClueChannelExcluded(c));
         const todayValid = todayAll.filter((c) => isValidIntent(c.intent));
+        const todayChannelMap = {};
+        for (const c of todayAll) {
+          const ch = c.channel && ('' + c.channel).trim() ? '' + c.channel : '未指定';
+          todayChannelMap[ch] = (todayChannelMap[ch] || 0) + 1;
+        }
         const monthAllCreate = clues.filter((c) => getIntentDoctor(c) === doc.name && toTime(c.createTime) >= mn && toTime(c.createTime) < monthEndTs && !isRevisitRecord(c));
+        const monthChannelMap = {};
+        for (const c of monthAllCreate) {
+          const ch = c.channel && ('' + c.channel).trim() ? '' + c.channel : '未指定';
+          monthChannelMap[ch] = (monthChannelMap[ch] || 0) + 1;
+        }
         const monthValidCreate = monthAllCreate.filter((c) => isValidIntent(c.intent));
         const monthZhuanWei = monthValidCreate.filter((c) => c.intent === '已加微').length;
         const validRate = monthValidCreate.length > 0 ? ((monthValidCreate.length / monthAllCreate.length) * 100).toFixed(1) + '%' : '0%';
@@ -917,6 +1019,8 @@ function registerStatsRoutes(deps) {
           monthArrive,
           monthOnlineArrive,
           monthOfflineArrive,
+          todayChannelMap,
+          monthChannelMap,
           dayCounts,
           dayChannels,
           monthTotalByCreateTime,

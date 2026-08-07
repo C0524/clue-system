@@ -621,9 +621,9 @@
                 <tr v-for="item in doctorStat">
                   <td>{{item.name}}</td>
                   <!-- 线索统计（createTime 口径） -->
-                  <td class="num">{{ formatNumber(item.todayTotal) }}</td>
+                  <td class="num" @mouseenter="showDoctorClueChannel(item, 'today', $event)" @mouseleave="startHideChannelBreakdownTimer">{{ formatNumber(item.todayTotal) }}</td>
                   <td class="num">{{ formatNumber(item.todayValid) }}</td>
-                  <td class="num">{{ formatNumber(item.monthTotal) }}</td>
+                  <td class="num" @mouseenter="showDoctorClueChannel(item, 'month', $event)" @mouseleave="startHideChannelBreakdownTimer">{{ formatNumber(item.monthTotal) }}</td>
                   <td class="num">{{ formatNumber(item.monthValid) }}</td>
                   <td class="num">{{ item.monthValidRate }}</td>
                   <td class="num">{{ formatNumber(item.monthZhuanWei) }}</td>
@@ -642,9 +642,9 @@
                 </tr>
                 <tr class="totals" v-if="doctorStat && doctorStat.length>0">
                   <td>总计</td>
-                  <td class="num">{{ formatNumber(sumField(doctorStat,'todayTotal')) }}</td>
+                  <td class="num" @mouseenter="showDoctorClueTotalChannel('today', $event)" @mouseleave="startHideChannelBreakdownTimer">{{ formatNumber(sumField(doctorStat,'todayTotal')) }}</td>
                   <td class="num">{{ formatNumber(sumField(doctorStat,'todayValid')) }}</td>
-                  <td class="num">{{ formatNumber(sumField(doctorStat,'monthTotal')) }}</td>
+                  <td class="num" @mouseenter="showDoctorClueTotalChannel('month', $event)" @mouseleave="startHideChannelBreakdownTimer">{{ formatNumber(sumField(doctorStat,'monthTotal')) }}</td>
                   <td class="num">{{ formatNumber(sumField(doctorStat,'monthValid')) }}</td>
                   <td class="num">{{ avgPercentField(doctorStat,'monthValidRate') }}</td>
                   <td class="num">{{ formatNumber(sumField(doctorStat,'monthZhuanWei')) }}</td>
@@ -667,21 +667,20 @@
           <div class="stat-card">
             <div class="card-header"><div class="title">套电统计</div><div class="subtitle">仅套电角色账号</div></div>
             <div class="card-body">
-              <table class="stat-table" border="0" cellpadding="4" width="100%">
+              <table class="stat-table tao-grid-table" border="0" cellpadding="4" width="100%">
                 <tr>
-                  <th>人员姓名</th>
-                  <th class="num">当日线索</th>
-                  <th class="num">当日有效</th>
-                  <th class="num">当月线索</th>
-                  <th class="num">当月有效</th>
-                  <th class="num">当日初诊预约</th>
-                  <th class="num">当日复诊预约</th>
-                  <th class="num">当月初诊预约</th>
-                  <th class="num">当月复诊预约</th>
-                  <th class="num">当月消费人数</th>
-                  <th class="num">总销售额</th>
-                  <th class="num">预约到诊单体</th>
-                  <th class="num">月成交率</th>
+                  <th rowspan="2">人员姓名</th>
+                  <th rowspan="2" class="num">当日线索</th>
+                  <th rowspan="2" class="num">当日有效</th>
+                  <th rowspan="2" class="num">当月线索</th>
+                  <th rowspan="2" class="num">当月有效</th>
+                  <th rowspan="2" class="num">有效率</th>
+                  <th :colspan="taoChannelHeaders.length" class="num">渠道分布</th>
+                  <th :colspan="taoDoctorHeaders.length" class="num">医生分布</th>
+                </tr>
+                <tr>
+                  <th v-for="ch in taoChannelHeaders" :key="'tao-ch-h-'+ch" class="num dist-col">{{ ch }}</th>
+                  <th v-for="doc in taoDoctorHeaders" :key="'tao-doc-h-'+doc" class="num dist-col">{{ doc }}</th>
                 </tr>
                 <tr v-for="item in personnelTaoStatRows" :key="'tao-'+item.name" v-if="!(item.name==='未分配' && user.role!=='主管')">
                   <td>{{item.name}}</td>
@@ -689,14 +688,9 @@
                   <td class="num">{{ formatNumber(item.todayValid) }}</td>
                   <td class="num">{{ formatNumber(item.monthTotal) }}</td>
                   <td class="num">{{ formatNumber(item.monthValid) }}</td>
-                  <td class="num">{{ formatNumber(item.todayBookInitial || 0) }}</td>
-                  <td class="num">{{ formatNumber(item.todayBookRevisit || 0) }}</td>
-                  <td class="num">{{ formatNumber(item.monthBookInitial || 0) }}</td>
-                  <td class="num">{{ formatNumber(item.monthBookRevisit || 0) }}</td>
-                  <td class="num">{{ formatNumber(item.monthConsumerCount || 0) }}</td>
-                  <td class="num">{{ formatNumber(item.monthSales || 0) }}</td>
-                  <td class="num">{{ formatNumber(item.monthUnitSales || 0) }}</td>
-                  <td class="num">{{ formatRate(item.monthDealRate || 0) }}</td>
+                  <td class="num">{{ formatRate(item.monthTotal ? (item.monthValid / item.monthTotal * 100) : 0) }}</td>
+                  <td v-for="ch in taoChannelHeaders" :key="'tao-ch-'+item.name+'-'+ch" class="num dist-col">{{ formatNumber(getMapValue(item.monthChannelMap, ch)) }}</td>
+                  <td v-for="doc in taoDoctorHeaders" :key="'tao-doc-'+item.name+'-'+doc" class="num dist-col">{{ formatNumber(getMapValue(item.monthDoctorMap, doc)) }}</td>
                 </tr>
                 <tr class="totals" v-if="personnelTaoStatRows && personnelTaoStatRows.length>0">
                   <td>总计</td>
@@ -704,14 +698,9 @@
                   <td class="num">{{ formatNumber(sumField(personnelTaoStatRows,'todayValid')) }}</td>
                   <td class="num">{{ formatNumber(sumField(personnelTaoStatRows,'monthTotal')) }}</td>
                   <td class="num">{{ formatNumber(sumField(personnelTaoStatRows,'monthValid')) }}</td>
-                  <td class="num">{{ formatNumber(sumField(personnelTaoStatRows,'todayBookInitial')) }}</td>
-                  <td class="num">{{ formatNumber(sumField(personnelTaoStatRows,'todayBookRevisit')) }}</td>
-                  <td class="num">{{ formatNumber(sumField(personnelTaoStatRows,'monthBookInitial')) }}</td>
-                  <td class="num">{{ formatNumber(sumField(personnelTaoStatRows,'monthBookRevisit')) }}</td>
-                  <td class="num">{{ formatNumber(sumField(personnelTaoStatRows,'monthConsumerCount')) }}</td>
-                  <td class="num">{{ formatNumber(sumField(personnelTaoStatRows,'monthSales')) }}</td>
-                  <td class="num">{{ formatNumber(sumField(personnelTaoStatRows,'monthBook') ? (sumField(personnelTaoStatRows,'monthSales') / sumField(personnelTaoStatRows,'monthBook')) : 0) }}</td>
-                  <td class="num">{{ formatRate(sumField(personnelTaoStatRows,'monthBook') ? (sumField(personnelTaoStatRows,'monthConsumerCount') / sumField(personnelTaoStatRows,'monthBook') * 100) : 0) }}</td>
+                  <td class="num">{{ formatRate(sumField(personnelTaoStatRows,'monthTotal') ? (sumField(personnelTaoStatRows,'monthValid') / sumField(personnelTaoStatRows,'monthTotal') * 100) : 0) }}</td>
+                  <td v-for="ch in taoChannelHeaders" :key="'tao-ch-total-'+ch" class="num dist-col">{{ formatNumber(sumMapValueByKey(personnelTaoStatRows, 'monthChannelMap', ch)) }}</td>
+                  <td v-for="doc in taoDoctorHeaders" :key="'tao-doc-total-'+doc" class="num dist-col">{{ formatNumber(sumMapValueByKey(personnelTaoStatRows, 'monthDoctorMap', doc)) }}</td>
                 </tr>
               </table>
             </div>
@@ -734,6 +723,7 @@
                   <th class="num">当月复诊预约</th>
                   <th class="num">预约总数</th>
                   <th class="num">预约率</th>
+                  <th class="num">当月到诊人数</th>
                   <th class="num">当月消费人数</th>
                   <th class="num">总销售额</th>
                   <th class="num">预约到诊单体</th>
@@ -752,6 +742,7 @@
                   <td class="num">{{ formatNumber(item.monthBookRevisit || 0) }}</td>
                   <td class="num">{{ formatNumber(item.monthBookTotal || ((item.monthBookInitial || 0) + (item.monthBookRevisit || 0))) }}</td>
                   <td class="num">{{ formatRate(item.monthBookRate || 0) }}</td>
+                  <td class="num">{{ formatNumber(item.monthArriveCount || 0) }}</td>
                   <td class="num">{{ formatNumber(item.monthConsumerCount || 0) }}</td>
                   <td class="num">{{ formatNumber(item.monthSales || 0) }}</td>
                   <td class="num">{{ formatNumber(item.monthUnitSales || 0) }}</td>
@@ -770,10 +761,11 @@
                   <td class="num">{{ formatNumber(sumField(personnelConsultStatRows,'monthBookRevisit')) }}</td>
                   <td class="num">{{ formatNumber(sumField(personnelConsultStatRows,'monthBookTotal')) }}</td>
                   <td class="num">{{ formatRate(sumField(personnelConsultStatRows,'monthEffective') ? (sumField(personnelConsultStatRows,'monthBookInitial') / sumField(personnelConsultStatRows,'monthEffective') * 100) : 0) }}</td>
+                  <td class="num">{{ formatNumber(sumField(personnelConsultStatRows,'monthArriveCount')) }}</td>
                   <td class="num">{{ formatNumber(sumField(personnelConsultStatRows,'monthConsumerCount')) }}</td>
                   <td class="num">{{ formatNumber(sumField(personnelConsultStatRows,'monthSales')) }}</td>
-                  <td class="num">{{ formatNumber(sumField(personnelConsultStatRows,'monthBook') ? (sumField(personnelConsultStatRows,'monthSales') / sumField(personnelConsultStatRows,'monthBook')) : 0) }}</td>
-                  <td class="num">{{ formatRate(sumField(personnelConsultStatRows,'monthBook') ? (sumField(personnelConsultStatRows,'monthConsumerCount') / sumField(personnelConsultStatRows,'monthBook') * 100) : 0) }}</td>
+                  <td class="num">{{ formatNumber(sumField(personnelConsultStatRows,'monthArriveCount') ? (sumField(personnelConsultStatRows,'monthSales') / sumField(personnelConsultStatRows,'monthArriveCount')) : 0) }}</td>
+                  <td class="num">{{ formatRate(sumField(personnelConsultStatRows,'monthArriveCount') ? (sumField(personnelConsultStatRows,'monthConsumerCount') / sumField(personnelConsultStatRows,'monthArriveCount') * 100) : 0) }}</td>
                 </tr>
               </table>
             </div>
@@ -789,12 +781,13 @@
           <div class="stat-card" v-if="user.role!=='套电' && user.role!=='运营'">
             <div class="card-header"><div class="title">药费统计</div><div class="subtitle">按挂号专家汇总（按所选月份）</div></div>
             <div class="card-body">
+              <div class="drug-cost-scroll">
               <table class="stat-table drug-cost-table" border="0" cellpadding="4" width="100%">
                 <tr>
                   <th rowspan="2">专家</th>
                   <th colspan="3" class="group-sep-right">待看诊</th>
-                  <th colspan="7" class="group-sep-right">初诊</th>
-                  <th colspan="7" class="group-sep-right">复诊</th>
+                  <th colspan="9" class="group-sep-right">初诊</th>
+                  <th colspan="9" class="group-sep-right">复诊</th>
                   <th rowspan="2" class="num">线上药费合计</th>
                   <th rowspan="2" class="num">线下药费合计</th>
                   <th rowspan="2" class="num">药费合计</th>
@@ -813,6 +806,8 @@
                   <th class="num">到诊</th>
                   <th class="num">开方人数</th>
                   <th class="num">成交率</th>
+                  <th class="num">退费人数</th>
+                  <th class="num">退费金额</th>
                   <th class="num">金额</th>
                   <th class="num">单体</th>
                   <th class="num">方均</th>
@@ -820,6 +815,8 @@
                   <th class="num">到诊</th>
                   <th class="num">开方人数</th>
                   <th class="num">成交率</th>
+                  <th class="num">退费人数</th>
+                  <th class="num">退费金额</th>
                   <th class="num">金额</th>
                   <th class="num">单体</th>
                   <th class="num">方均</th>
@@ -833,20 +830,24 @@
                   <td class="num">{{ formatNumber(item.monthInitialArrive) }}</td>
                   <td class="num">{{ formatNumber(item.monthInitialDrugTaken || 0) }}</td>
                   <td class="num">{{ formatRate(item.monthInitialDealRate || 0) }}</td>
-                  <td class="num">{{ formatMoney2(item.initialCost) }}</td>
-                  <td class="num">{{ formatMoney2(item.monthInitialArrive ? (Number(item.initialCost) / Number(item.monthInitialArrive)) : 0) }}</td>
-                  <td class="num">{{ formatMoney2(item.monthInitialDrugTaken ? (Number(item.initialCost) / Number(item.monthInitialDrugTaken)) : 0) }}</td>
-                  <td class="num group-sep-right">{{ formatMoney2(calcMonthlyDailyAvg(item.initialCost)) }}</td>
+                  <td class="num">{{ formatNumber(item.initialRefundCount || 0) }}</td>
+                  <td class="num">{{ formatMoney2(item.initialRefundAmount || 0) }}</td>
+                  <td class="num">{{ formatMoney2(getInitialNetCost(item)) }}</td>
+                  <td class="num">{{ formatMoney2(item.monthInitialArrive ? (getInitialNetCost(item) / Number(item.monthInitialArrive)) : 0) }}</td>
+                  <td class="num">{{ formatMoney2(item.monthInitialDrugTaken ? (getInitialNetCost(item) / Number(item.monthInitialDrugTaken)) : 0) }}</td>
+                  <td class="num group-sep-right">{{ formatMoney2(calcMonthlyDailyAvg(getInitialNetCost(item))) }}</td>
                   <td class="num">{{ formatNumber(item.monthRevisitArrive) }}</td>
                   <td class="num">{{ formatNumber(item.monthRevisitDrugTaken || 0) }}</td>
                   <td class="num">{{ formatRate(item.monthRevisitDealRate || 0) }}</td>
-                  <td class="num">{{ formatMoney2(item.revisitCost) }}</td>
-                  <td class="num">{{ formatMoney2(item.monthRevisitArrive ? (Number(item.revisitCost) / Number(item.monthRevisitArrive)) : 0) }}</td>
-                  <td class="num">{{ formatMoney2(item.monthRevisitDrugTaken ? (Number(item.revisitCost) / Number(item.monthRevisitDrugTaken)) : 0) }}</td>
-                  <td class="num group-sep-right">{{ formatMoney2(calcMonthlyDailyAvg(item.revisitCost)) }}</td>
+                  <td class="num">{{ formatNumber(item.revisitRefundCount || 0) }}</td>
+                  <td class="num">{{ formatMoney2(item.revisitRefundAmount || 0) }}</td>
+                  <td class="num">{{ formatMoney2(getRevisitNetCost(item)) }}</td>
+                  <td class="num">{{ formatMoney2(item.monthRevisitArrive ? (getRevisitNetCost(item) / Number(item.monthRevisitArrive)) : 0) }}</td>
+                  <td class="num">{{ formatMoney2(item.monthRevisitDrugTaken ? (getRevisitNetCost(item) / Number(item.monthRevisitDrugTaken)) : 0) }}</td>
+                  <td class="num group-sep-right">{{ formatMoney2(calcMonthlyDailyAvg(getRevisitNetCost(item))) }}</td>
                   <td class="num">{{ formatMoney2(item.onlineCost) }}</td>
                   <td class="num">{{ formatMoney2(item.offlineCost) }}</td>
-                  <td class="num">{{ formatMoney2(item.totalCost) }}</td>
+                  <td class="num">{{ formatMoney2(getTotalNetCost(item)) }}</td>
                   <td class="num">{{ formatMoney2(item.totalTreatmentFee) }}</td>
                   <td class="num">{{ formatMoney2(item.totalRegFee) }}</td>
                   <td class="num">{{ formatMoney2(getDrugGrandAmount(item)) }}</td>
@@ -863,20 +864,24 @@
                   <td class="num">{{ formatNumber(sumField(drugCostStat,'monthInitialArrive')) }}</td>
                   <td class="num">{{ formatNumber(sumField(drugCostStat,'monthInitialDrugTaken')) }}</td>
                   <td class="num">{{ formatRate(sumField(drugCostStat,'monthInitialArrive') ? (sumField(drugCostStat,'monthInitialDrugTaken') / sumField(drugCostStat,'monthInitialArrive') * 100) : 0) }}</td>
-                  <td class="num">{{ formatMoney2(sumField(drugCostStat,'initialCost')) }}</td>
-                  <td class="num">{{ formatMoney2(sumField(drugCostStat,'monthInitialArrive') ? (sumField(drugCostStat,'initialCost') / sumField(drugCostStat,'monthInitialArrive')) : 0) }}</td>
-                  <td class="num">{{ formatMoney2(sumField(drugCostStat,'monthInitialDrugTaken') ? (sumField(drugCostStat,'initialCost') / sumField(drugCostStat,'monthInitialDrugTaken')) : 0) }}</td>
-                  <td class="num group-sep-right">{{ formatMoney2(avgDrugDailyByCostKey('initialCost')) }}</td>
+                  <td class="num">{{ formatNumber(sumField(drugCostStat,'initialRefundCount')) }}</td>
+                  <td class="num">{{ formatMoney2(sumField(drugCostStat,'initialRefundAmount')) }}</td>
+                  <td class="num">{{ formatMoney2(sumDrugInitialNetCost()) }}</td>
+                  <td class="num">{{ formatMoney2(sumField(drugCostStat,'monthInitialArrive') ? (sumDrugInitialNetCost() / sumField(drugCostStat,'monthInitialArrive')) : 0) }}</td>
+                  <td class="num">{{ formatMoney2(sumField(drugCostStat,'monthInitialDrugTaken') ? (sumDrugInitialNetCost() / sumField(drugCostStat,'monthInitialDrugTaken')) : 0) }}</td>
+                  <td class="num group-sep-right">{{ formatMoney2(avgDrugDailyByType('initial')) }}</td>
                   <td class="num">{{ formatNumber(sumField(drugCostStat,'monthRevisitArrive')) }}</td>
                   <td class="num">{{ formatNumber(sumField(drugCostStat,'monthRevisitDrugTaken')) }}</td>
                   <td class="num">{{ formatRate(sumField(drugCostStat,'monthRevisitArrive') ? (sumField(drugCostStat,'monthRevisitDrugTaken') / sumField(drugCostStat,'monthRevisitArrive') * 100) : 0) }}</td>
-                  <td class="num">{{ formatMoney2(sumField(drugCostStat,'revisitCost')) }}</td>
-                  <td class="num">{{ formatMoney2(sumField(drugCostStat,'monthRevisitArrive') ? (sumField(drugCostStat,'revisitCost') / sumField(drugCostStat,'monthRevisitArrive')) : 0) }}</td>
-                  <td class="num">{{ formatMoney2(sumField(drugCostStat,'monthRevisitDrugTaken') ? (sumField(drugCostStat,'revisitCost') / sumField(drugCostStat,'monthRevisitDrugTaken')) : 0) }}</td>
-                  <td class="num group-sep-right">{{ formatMoney2(avgDrugDailyByCostKey('revisitCost')) }}</td>
+                  <td class="num">{{ formatNumber(sumField(drugCostStat,'revisitRefundCount')) }}</td>
+                  <td class="num">{{ formatMoney2(sumField(drugCostStat,'revisitRefundAmount')) }}</td>
+                  <td class="num">{{ formatMoney2(sumDrugRevisitNetCost()) }}</td>
+                  <td class="num">{{ formatMoney2(sumField(drugCostStat,'monthRevisitArrive') ? (sumDrugRevisitNetCost() / sumField(drugCostStat,'monthRevisitArrive')) : 0) }}</td>
+                  <td class="num">{{ formatMoney2(sumField(drugCostStat,'monthRevisitDrugTaken') ? (sumDrugRevisitNetCost() / sumField(drugCostStat,'monthRevisitDrugTaken')) : 0) }}</td>
+                  <td class="num group-sep-right">{{ formatMoney2(avgDrugDailyByType('revisit')) }}</td>
                   <td class="num">{{ formatMoney2(sumField(drugCostStat,'onlineCost')) }}</td>
                   <td class="num">{{ formatMoney2(sumField(drugCostStat,'offlineCost')) }}</td>
-                  <td class="num">{{ formatMoney2(sumField(drugCostStat,'totalCost')) }}</td>
+                  <td class="num">{{ formatMoney2(sumDrugTotalNetCost()) }}</td>
                   <td class="num">{{ formatMoney2(sumField(drugCostStat,'totalTreatmentFee')) }}</td>
                   <td class="num">{{ formatMoney2(sumField(drugCostStat,'totalRegFee')) }}</td>
                   <td class="num">{{ formatMoney2(sumDrugGrandAmount()) }}</td>
@@ -886,6 +891,7 @@
                   <td class="num">{{ formatInitialRevisitRatio(sumField(drugCostStat,'monthInitialArrive'), sumField(drugCostStat,'monthRevisitArrive')) }}</td>
                 </tr>
               </table>
+              </div>
             </div>
           </div>
         </div>
@@ -2208,6 +2214,32 @@ window.app = new Vue({
         const role = String(item.role || '').trim();
         return role === '套电' || name === 'admin';
       });
+    },
+    taoChannelHeaders(){
+      const rows = this.personnelTaoStatRows || [];
+      if(rows.length === 0) return ['渠道'];
+      const merged = {};
+      for(const r of rows){
+        const map = r && r.monthChannelMap && typeof r.monthChannelMap === 'object' ? r.monthChannelMap : {};
+        for(const [k, v] of Object.entries(map)){
+          merged[k] = (merged[k] || 0) + (Number(v) || 0);
+        }
+      }
+      const headers = this.sortDistrib(merged).map((x) => x.k);
+      return headers.length ? headers : ['渠道'];
+    },
+    taoDoctorHeaders(){
+      const rows = this.personnelTaoStatRows || [];
+      if(rows.length === 0) return ['医生'];
+      const merged = {};
+      for(const r of rows){
+        const map = r && r.monthDoctorMap && typeof r.monthDoctorMap === 'object' ? r.monthDoctorMap : {};
+        for(const [k, v] of Object.entries(map)){
+          merged[k] = (merged[k] || 0) + (Number(v) || 0);
+        }
+      }
+      const headers = this.sortDistrib(merged).map((x) => x.k);
+      return headers.length ? headers : ['医生'];
     },
     personnelConsultStatRows(){
       const src = Array.isArray(this.personnelStat) ? this.personnelStat : [];
@@ -4650,6 +4682,8 @@ window.app = new Vue({
             const monthTotal = (mg.monthTotal !== undefined) ? Number(mg.monthTotal) || 0 : (Number(it.monthTotal) || 0);
             const monthValid = (mg.monthValid !== undefined) ? Number(mg.monthValid) || 0 : (Number(it.monthValid) || 0);
             const monthZhuanWei = (mg.monthZhuanWei !== undefined) ? Number(mg.monthZhuanWei) || 0 : (Number(it.monthZhuanWei) || 0);
+            const todayChannelMap = (mg && mg.todayChannelMap && typeof mg.todayChannelMap === 'object') ? mg.todayChannelMap : {};
+            const monthChannelMap = (mg && mg.monthChannelMap && typeof mg.monthChannelMap === 'object') ? mg.monthChannelMap : {};
             const monthValidRate = monthTotal ? ((monthValid / monthTotal) * 100).toFixed(1) + '%' : '0%';
 
             // appointment/arrive related keep from docStat (recTime-based)
@@ -4666,7 +4700,7 @@ window.app = new Vue({
             const monthOfflineArrive = Number(it.monthOfflineArrive) || 0;
 
             return Object.assign({}, it, {
-              todayTotal, todayValid, monthTotal, monthValid, monthZhuanWei, monthValidRate,
+              todayTotal, todayValid, monthTotal, monthValid, monthZhuanWei, monthValidRate, todayChannelMap, monthChannelMap,
               monthBookInitial, monthBookRevisit, monthBookPrevInitial, monthBookPrevRevisit, monthBook, monthBookPrev, monthBookRate, monthArrive, monthArriveRate, monthOnlineArrive, monthOfflineArrive
             });
           }catch(e){ return it; }
@@ -4704,12 +4738,21 @@ window.app = new Vue({
               monthBook: b ? (b.monthBookCount || 0) : 0,
               monthBookInitial: (p && (p.monthBookInitial || p.monthBookInitial === 0)) ? (p.monthBookInitial || 0) : (b ? (b.monthBookInitialCount || 0) : 0),
               monthBookRevisit: (p && (p.monthBookRevisit || p.monthBookRevisit === 0)) ? (p.monthBookRevisit || 0) : (b ? (b.monthBookRevisitCount || 0) : 0),
+              monthArriveCount: (p && (p.monthArriveCount || p.monthArriveCount === 0))
+                ? (p.monthArriveCount || 0)
+                : (b
+                  ? ((String(p && p.role || '').trim() === '咨询' || String(p && p.role || '').trim() === '主管' || String(p && p.role || '').trim() === '医助')
+                    ? (b.monthArriveCountAll || b.monthArriveCount || 0)
+                    : (b.monthArriveCount || 0))
+                  : 0),
               monthBookTotal: (p && (p.monthBookTotal || p.monthBookTotal === 0)) ? (p.monthBookTotal || 0) : (b ? ((b.monthBookInitialCount || 0) + (b.monthBookRevisitCount || 0)) : 0),
               monthBookRate: (p && (p.monthBookRate || p.monthBookRate === 0)) ? (p.monthBookRate || 0) : 0,
               monthConsumerCount: (p && (p.monthConsumerCount || p.monthConsumerCount === 0)) ? (p.monthConsumerCount || 0) : (b ? (b.monthConsumerCount || 0) : 0),
               monthSales: (p && (p.monthSales || p.monthSales === 0)) ? (p.monthSales || 0) : (b ? (b.monthSales || 0) : 0),
               monthUnitSales: (p && (p.monthUnitSales || p.monthUnitSales === 0)) ? (p.monthUnitSales || 0) : (b ? (b.monthUnitSales || 0) : 0),
-              monthDealRate: (p && (p.monthDealRate || p.monthDealRate === 0)) ? (p.monthDealRate || 0) : (b ? (b.monthDealRate || 0) : 0)
+              monthDealRate: (p && (p.monthDealRate || p.monthDealRate === 0)) ? (p.monthDealRate || 0) : (b ? (b.monthDealRate || 0) : 0),
+              monthChannelMap: (p && p.monthChannelMap) ? p.monthChannelMap : {},
+              monthDoctorMap: (p && p.monthDoctorMap) ? p.monthDoctorMap : {}
             });
           });
         }else{
@@ -4734,12 +4777,17 @@ window.app = new Vue({
               monthBook: b.monthBookCount || 0,
               monthBookInitial: b.monthBookInitialCount || 0,
               monthBookRevisit: b.monthBookRevisitCount || 0,
+              monthArriveCount: (String(t && t.role || '').trim() === '咨询' || String(t && t.role || '').trim() === '主管' || String(t && t.role || '').trim() === '医助')
+                ? (b.monthArriveCountAll || b.monthArriveCount || 0)
+                : (b.monthArriveCount || 0),
               monthBookTotal: (b.monthBookInitialCount || 0) + (b.monthBookRevisitCount || 0),
               monthBookRate: 0,
               monthConsumerCount: b.monthConsumerCount || 0,
               monthSales: b.monthSales || 0,
               monthUnitSales: b.monthUnitSales || 0,
-              monthDealRate: b.monthDealRate || 0
+              monthDealRate: b.monthDealRate || 0,
+              monthChannelMap: t.monthChannelMap || {},
+              monthDoctorMap: t.monthDoctorMap || {}
             };
           });
           this.personnelStat = arr;
@@ -4810,6 +4858,44 @@ window.app = new Vue({
         this.showChannelPopup = true;
       }catch(err){ console.error('showDoctorMonthTotalChannel error', err); this.showChannelPopup = false }
     },
+    showDoctorClueChannel(item, period, e){
+      try{
+        this.clearHideChannelTimer();
+        const map = (period === 'today')
+          ? ((item && item.todayChannelMap && typeof item.todayChannelMap === 'object') ? item.todayChannelMap : {})
+          : ((item && item.monthChannelMap && typeof item.monthChannelMap === 'object') ? item.monthChannelMap : {});
+        this.channelPopupItems = Object.keys(map).map(k=>({channel:k,count:map[k]})).sort((a,b)=>b.count - a.count);
+        const rect = e.target.getBoundingClientRect();
+        const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+        const scrollX = window.scrollX || window.pageXOffset || document.documentElement.scrollLeft || 0;
+        this.channelPopupX = Math.round(rect.right + 8 + scrollX);
+        this.channelPopupY = Math.round(rect.top + scrollY - 6);
+        this.showChannelPopup = true;
+      }catch(err){ console.error('showDoctorClueChannel error', err); this.showChannelPopup = false }
+    },
+    showDoctorClueTotalChannel(period, e){
+      try{
+        this.clearHideChannelTimer();
+        const aggregated = {};
+        for(const row of (this.doctorStat || [])){
+          const map = (period === 'today')
+            ? ((row && row.todayChannelMap && typeof row.todayChannelMap === 'object') ? row.todayChannelMap : {})
+            : ((row && row.monthChannelMap && typeof row.monthChannelMap === 'object') ? row.monthChannelMap : {});
+          for(const channel of Object.keys(map)){
+            const val = Number(map[channel]) || 0;
+            if(!val) continue;
+            aggregated[channel] = (aggregated[channel] || 0) + val;
+          }
+        }
+        this.channelPopupItems = Object.keys(aggregated).map(k=>({channel:k,count:aggregated[k]})).sort((a,b)=>b.count - a.count);
+        const rect = e.target.getBoundingClientRect();
+        const scrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+        const scrollX = window.scrollX || window.pageXOffset || document.documentElement.scrollLeft || 0;
+        this.channelPopupX = Math.round(rect.right + 8 + scrollX);
+        this.channelPopupY = Math.round(rect.top + scrollY - 6);
+        this.showChannelPopup = true;
+      }catch(err){ console.error('showDoctorClueTotalChannel error', err); this.showChannelPopup = false }
+    },
     showMonthGoalTotalDayChannel(dayIdx, e){
       try{
         this.clearHideChannelTimer();
@@ -4858,6 +4944,40 @@ window.app = new Vue({
       this.hideChannelTimer = setTimeout(()=>{ this.showChannelPopup = false; this.hideChannelTimer = null; }, 220);
     },
     clearHideChannelTimer(){ if(this.hideChannelTimer){ clearTimeout(this.hideChannelTimer); this.hideChannelTimer = null; } },
+    sortDistrib(map){
+      if(!map || typeof map !== 'object') return [];
+      return Object.entries(map)
+        .sort((a,b)=>{
+          const dv = (Number(b[1]) || 0) - (Number(a[1]) || 0);
+          if(dv !== 0) return dv;
+          return String(a[0]).localeCompare(String(b[0]), 'zh-Hans-CN');
+        })
+        .map(([k,v])=>({k,v}));
+    },
+    getMapValue(map, key){
+      if(!map || typeof map !== 'object') return 0;
+      return Number(map[key]) || 0;
+    },
+    sumMapValueByKey(rows, field, key){
+      let sum = 0;
+      for(const row of rows || []){
+        const map = row && row[field] && typeof row[field] === 'object' ? row[field] : null;
+        if(map) sum += Number(map[key]) || 0;
+      }
+      return sum;
+    },
+    mergeDistrib(rows, field){
+      const merged = {};
+      for(const row of rows||[]){
+        const m = row && row[field];
+        if(m && typeof m === 'object'){
+          for(const [k,v] of Object.entries(m)){
+            merged[k] = (merged[k]||0) + (Number(v)||0);
+          }
+        }
+      }
+      return merged;
+    },
     formatNumber(v){
       if(v === null || v === undefined || v === '') return '0';
       const n = Number(v);
@@ -4953,10 +5073,70 @@ window.app = new Vue({
       return s;
     },
     getDrugGrandAmount(item){
-      const drug = Number(item && item.totalCost) || 0;
+      const drug = this.getTotalNetCost(item);
       const treatment = Number(item && item.totalTreatmentFee) || 0;
       const reg = Number(item && item.totalRegFee) || 0;
       return drug + treatment + reg;
+    },
+    getInitialNetCost(item){
+      const explicitNet = Number(item && item.initialNetCost);
+      if(Number.isFinite(explicitNet)) return explicitNet;
+      const legacyCost = Number(item && item.initialCost);
+      if(Number.isFinite(legacyCost)) return legacyCost;
+      const raw = Number(item && item.initialRawCost);
+      const refund = Number(item && item.initialRefundAmount) || 0;
+      if(Number.isFinite(raw)) return raw - refund;
+      return 0;
+    },
+    getRevisitNetCost(item){
+      const explicitNet = Number(item && item.revisitNetCost);
+      if(Number.isFinite(explicitNet)) return explicitNet;
+      const legacyCost = Number(item && item.revisitCost);
+      if(Number.isFinite(legacyCost)) return legacyCost;
+      const raw = Number(item && item.revisitRawCost);
+      const refund = Number(item && item.revisitRefundAmount) || 0;
+      if(Number.isFinite(raw)) return raw - refund;
+      return 0;
+    },
+    getTotalNetCost(item){
+      const explicitNet = Number(item && item.totalNetCost);
+      if(Number.isFinite(explicitNet)) return explicitNet;
+      const legacyCost = Number(item && item.totalCost);
+      if(Number.isFinite(legacyCost)) return legacyCost;
+      return this.getInitialNetCost(item) + this.getRevisitNetCost(item);
+    },
+    sumDrugInitialNetCost(){
+      if(!Array.isArray(this.drugCostStat) || this.drugCostStat.length===0) return 0;
+      let s = 0;
+      for(const it of this.drugCostStat) s += this.getInitialNetCost(it);
+      return s;
+    },
+    sumDrugRevisitNetCost(){
+      if(!Array.isArray(this.drugCostStat) || this.drugCostStat.length===0) return 0;
+      let s = 0;
+      for(const it of this.drugCostStat) s += this.getRevisitNetCost(it);
+      return s;
+    },
+    sumDrugTotalNetCost(){
+      if(!Array.isArray(this.drugCostStat) || this.drugCostStat.length===0) return 0;
+      let s = 0;
+      for(const it of this.drugCostStat) s += this.getTotalNetCost(it);
+      return s;
+    },
+    avgDrugDailyByType(type){
+      if(!Array.isArray(this.drugCostStat) || this.drugCostStat.length===0) return 0;
+      let sum = 0;
+      let cnt = 0;
+      for(const it of this.drugCostStat){
+        const amount = type === 'revisit' ? this.getRevisitNetCost(it) : this.getInitialNetCost(it);
+        const daily = Number(this.calcMonthlyDailyAvg(amount));
+        if(Number.isFinite(daily)){
+          sum += daily;
+          cnt++;
+        }
+      }
+      if(cnt === 0) return 0;
+      return sum / cnt;
     },
     sumDrugGrandAmount(){
       if(!Array.isArray(this.drugCostStat) || this.drugCostStat.length===0) return 0;
@@ -5241,13 +5421,13 @@ window.app = new Vue({
             Number(this.personnelTotals ? this.personnelTotals.bookTotals.monthBookRevisit : this.sumField(source,'monthBookRevisit')) || 0,
             Number(this.personnelTotals ? this.personnelTotals.bookTotals.monthConsumerCount : this.sumField(source,'monthConsumerCount')) || 0,
             Number(this.personnelTotals ? this.personnelTotals.bookTotals.monthSales : this.sumField(source,'monthSales')) || 0,
-            Number(this.personnelTotals ? this.personnelTotals.bookTotals.monthUnitSales : (this.sumField(source,'monthBook') ? (this.sumField(source,'monthSales') / this.sumField(source,'monthBook')) : 0)) || 0,
+            Number(this.personnelTotals ? this.personnelTotals.bookTotals.monthUnitSales : (this.sumField(source,'monthArriveCount') ? (this.sumField(source,'monthSales') / this.sumField(source,'monthArriveCount')) : 0)) || 0,
             this.formatRate(this.personnelTotals ? this.personnelTotals.bookTotals.monthDealRate : (this.sumField(source,'monthBook') ? (this.sumField(source,'monthConsumerCount') / this.sumField(source,'monthBook') * 100) : 0))
           ]);
         }
         return { fileName: `套电咨询统计_${month}.xlsx`, sheetName: '套电咨询统计', headers, rows };
       }
-      const headers = ['专家','待看诊-初诊','待看诊-复诊','待看诊-合计','初诊-到诊','初诊-开方人数','初诊-成交率','初诊-金额','初诊-单体','初诊-方均','初诊-日均','复诊-到诊','复诊-开方人数','复诊-成交率','复诊-金额','复诊-单体','复诊-方均','复诊-日均','线上药费合计','线下药费合计','药费合计','治疗费','挂号费','总金额','总单体','总方均','总日均','初复诊比'];
+      const headers = ['专家','待看诊-初诊','待看诊-复诊','待看诊-合计','初诊-到诊','初诊-开方人数','初诊-成交率','初诊-退费人数','初诊-退费金额','初诊-金额','初诊-单体','初诊-方均','初诊-日均','复诊-到诊','复诊-开方人数','复诊-成交率','复诊-退费人数','复诊-退费金额','复诊-金额','复诊-单体','复诊-方均','复诊-日均','线上药费合计','线下药费合计','药费合计','治疗费','挂号费','总金额','总单体','总方均','总日均','初复诊比'];
       const rows = (this.drugCostStat || []).map(item => [
         item.name || '',
         Number(item.monthWaitInitial) || 0,
@@ -5256,20 +5436,24 @@ window.app = new Vue({
         Number(item.monthInitialArrive) || 0,
         Number(item.monthInitialDrugTaken) || 0,
         this.formatRate(item.monthInitialDealRate || 0),
-        this.roundMoney2(item.initialCost),
-        this.roundMoney2(Number(item.monthInitialArrive) ? ((Number(item.initialCost) || 0) / (Number(item.monthInitialArrive) || 0)) : 0),
-        this.roundMoney2(Number(item.monthInitialDrugTaken) ? ((Number(item.initialCost) || 0) / (Number(item.monthInitialDrugTaken) || 0)) : 0),
-        this.roundMoney2(this.calcMonthlyDailyAvg(item.initialCost)),
+        Number(item.initialRefundCount) || 0,
+        this.roundMoney2(item.initialRefundAmount),
+        this.roundMoney2(this.getInitialNetCost(item)),
+        this.roundMoney2(Number(item.monthInitialArrive) ? (this.getInitialNetCost(item) / (Number(item.monthInitialArrive) || 0)) : 0),
+        this.roundMoney2(Number(item.monthInitialDrugTaken) ? (this.getInitialNetCost(item) / (Number(item.monthInitialDrugTaken) || 0)) : 0),
+        this.roundMoney2(this.calcMonthlyDailyAvg(this.getInitialNetCost(item))),
         Number(item.monthRevisitArrive) || 0,
         Number(item.monthRevisitDrugTaken) || 0,
         this.formatRate(item.monthRevisitDealRate || 0),
-        this.roundMoney2(item.revisitCost),
-        this.roundMoney2(Number(item.monthRevisitArrive) ? ((Number(item.revisitCost) || 0) / (Number(item.monthRevisitArrive) || 0)) : 0),
-        this.roundMoney2(Number(item.monthRevisitDrugTaken) ? ((Number(item.revisitCost) || 0) / (Number(item.monthRevisitDrugTaken) || 0)) : 0),
-        this.roundMoney2(this.calcMonthlyDailyAvg(item.revisitCost)),
+        Number(item.revisitRefundCount) || 0,
+        this.roundMoney2(item.revisitRefundAmount),
+        this.roundMoney2(this.getRevisitNetCost(item)),
+        this.roundMoney2(Number(item.monthRevisitArrive) ? (this.getRevisitNetCost(item) / (Number(item.monthRevisitArrive) || 0)) : 0),
+        this.roundMoney2(Number(item.monthRevisitDrugTaken) ? (this.getRevisitNetCost(item) / (Number(item.monthRevisitDrugTaken) || 0)) : 0),
+        this.roundMoney2(this.calcMonthlyDailyAvg(this.getRevisitNetCost(item))),
         this.roundMoney2(item.onlineCost),
         this.roundMoney2(item.offlineCost),
-        this.roundMoney2(item.totalCost),
+        this.roundMoney2(this.getTotalNetCost(item)),
         this.roundMoney2(item.totalTreatmentFee),
         this.roundMoney2(item.totalRegFee),
         this.roundMoney2(this.getDrugGrandAmount(item)),
@@ -5287,20 +5471,24 @@ window.app = new Vue({
           Number(this.sumField(this.drugCostStat,'monthInitialArrive')) || 0,
           Number(this.sumField(this.drugCostStat,'monthInitialDrugTaken')) || 0,
           this.formatRate(this.sumField(this.drugCostStat,'monthInitialArrive') ? (this.sumField(this.drugCostStat,'monthInitialDrugTaken') / this.sumField(this.drugCostStat,'monthInitialArrive') * 100) : 0),
-          this.roundMoney2(this.sumField(this.drugCostStat,'initialCost')),
-          this.roundMoney2(this.sumField(this.drugCostStat,'monthInitialArrive') ? (this.sumField(this.drugCostStat,'initialCost') / this.sumField(this.drugCostStat,'monthInitialArrive')) : 0),
-          this.roundMoney2(this.sumField(this.drugCostStat,'monthInitialDrugTaken') ? (this.sumField(this.drugCostStat,'initialCost') / this.sumField(this.drugCostStat,'monthInitialDrugTaken')) : 0),
-          this.roundMoney2(this.avgDrugDailyByCostKey('initialCost')),
+          Number(this.sumField(this.drugCostStat,'initialRefundCount')) || 0,
+          this.roundMoney2(this.sumField(this.drugCostStat,'initialRefundAmount')),
+          this.roundMoney2(this.sumDrugInitialNetCost()),
+          this.roundMoney2(this.sumField(this.drugCostStat,'monthInitialArrive') ? (this.sumDrugInitialNetCost() / this.sumField(this.drugCostStat,'monthInitialArrive')) : 0),
+          this.roundMoney2(this.sumField(this.drugCostStat,'monthInitialDrugTaken') ? (this.sumDrugInitialNetCost() / this.sumField(this.drugCostStat,'monthInitialDrugTaken')) : 0),
+          this.roundMoney2(this.avgDrugDailyByType('initial')),
           Number(this.sumField(this.drugCostStat,'monthRevisitArrive')) || 0,
           Number(this.sumField(this.drugCostStat,'monthRevisitDrugTaken')) || 0,
           this.formatRate(this.sumField(this.drugCostStat,'monthRevisitArrive') ? (this.sumField(this.drugCostStat,'monthRevisitDrugTaken') / this.sumField(this.drugCostStat,'monthRevisitArrive') * 100) : 0),
-          this.roundMoney2(this.sumField(this.drugCostStat,'revisitCost')),
-          this.roundMoney2(this.sumField(this.drugCostStat,'monthRevisitArrive') ? (this.sumField(this.drugCostStat,'revisitCost') / this.sumField(this.drugCostStat,'monthRevisitArrive')) : 0),
-          this.roundMoney2(this.sumField(this.drugCostStat,'monthRevisitDrugTaken') ? (this.sumField(this.drugCostStat,'revisitCost') / this.sumField(this.drugCostStat,'monthRevisitDrugTaken')) : 0),
-          this.roundMoney2(this.avgDrugDailyByCostKey('revisitCost')),
+          Number(this.sumField(this.drugCostStat,'revisitRefundCount')) || 0,
+          this.roundMoney2(this.sumField(this.drugCostStat,'revisitRefundAmount')),
+          this.roundMoney2(this.sumDrugRevisitNetCost()),
+          this.roundMoney2(this.sumField(this.drugCostStat,'monthRevisitArrive') ? (this.sumDrugRevisitNetCost() / this.sumField(this.drugCostStat,'monthRevisitArrive')) : 0),
+          this.roundMoney2(this.sumField(this.drugCostStat,'monthRevisitDrugTaken') ? (this.sumDrugRevisitNetCost() / this.sumField(this.drugCostStat,'monthRevisitDrugTaken')) : 0),
+          this.roundMoney2(this.avgDrugDailyByType('revisit')),
           this.roundMoney2(this.sumField(this.drugCostStat,'onlineCost')),
           this.roundMoney2(this.sumField(this.drugCostStat,'offlineCost')),
-          this.roundMoney2(this.sumField(this.drugCostStat,'totalCost')),
+          this.roundMoney2(this.sumDrugTotalNetCost()),
           this.roundMoney2(this.sumField(this.drugCostStat,'totalTreatmentFee')),
           this.roundMoney2(this.sumField(this.drugCostStat,'totalRegFee')),
           this.roundMoney2(this.sumDrugGrandAmount()),

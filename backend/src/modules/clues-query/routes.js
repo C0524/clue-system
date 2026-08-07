@@ -42,14 +42,14 @@ function registerCluesQueryRoutes(deps) {
       ? `(COALESCE(${c}.expired, 0) = 1 OR COALESCE(${c}.visitStatus, '') = '过期单')`
       : `COALESCE(${c}.visitStatus, '') = '过期单'`;
     return `(
-      (
-        ${baseTimeExpr} IS NULL
-        OR ${baseTimeExpr} <= DATE_SUB(NOW(), INTERVAL 30 DAY)
-      )
-      AND (
-        ${hardExpired}
-        OR ${c}.intent = '无效'
-        OR (
+      ${hardExpired}
+      OR ${c}.intent = '无效'
+      OR (
+        (
+          ${baseTimeExpr} IS NULL
+          OR ${baseTimeExpr} <= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        )
+        AND (
           (COALESCE(${c}.book,'') = '' OR ${c}.book = '未预约')
           AND EXISTS (
             SELECT 1 FROM visits vv WHERE vv.clueId = ${c}.id GROUP BY vv.clueId HAVING GREATEST(IFNULL(MAX(vv.time), '1000-01-01 00:00:00'), IFNULL(${baseTimeExpr}, '1000-01-01 00:00:00')) <= DATE_SUB(NOW(), INTERVAL 15 DAY)

@@ -13,7 +13,25 @@
 .stat-table td.num{text-align:center}
 .stat-table td.red{color:var(--danger);font-weight:700}
 .stat-table tr.totals td{font-weight:700;background:#fbfdfe}
+.tao-grid-table{table-layout:fixed;width:100%;}
+.tao-grid-table th,.tao-grid-table td{height:34px;line-height:1.2;vertical-align:middle;}
+.tao-grid-table .dist-col{width:78px;min-width:78px;max-width:78px;}
+.stat-table td.distrib-cell{white-space:normal;text-align:left;vertical-align:top;padding:4px 6px;min-width:160px;}
+.distrib-chips{display:flex;flex-wrap:wrap;gap:4px;align-items:flex-start;}
+.distrib-chip{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:56px;padding:4px 6px;border:1px solid #dde3ed;border-radius:6px;background:#f6f8fc;box-sizing:border-box;flex:0 0 56px;}
+.distrib-chip-label{font-size:11px;color:var(--text-secondary,#888);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;line-height:1.4;}
+.distrib-chip-val{font-size:13px;font-weight:700;color:var(--text-title,#222);line-height:1.5;}
+.distrib-empty{color:#bbb;font-size:12px;}
 .drug-cost-table .group-sep-right{border-right:2px solid #c8d3e1 !important;}
+.drug-cost-scroll{
+	width:100%;
+	overflow-x:auto;
+	overflow-y:hidden;
+}
+.drug-cost-scroll .drug-cost-table{
+	width:max-content;
+	min-width:100%;
+}
 .month-day-col{width:36px;min-width:36px;max-width:36px;padding:3px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .stat-card table{margin:8px 0}
 .stat-title{font-size:16px;font-weight:bold;margin:25px 0 10px 0;color:var(--primary);}
