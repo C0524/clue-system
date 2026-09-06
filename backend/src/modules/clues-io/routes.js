@@ -57,6 +57,23 @@ function registerCluesIoRoutes(deps) {
     return fallbackParentClueId;
   }
 
+  async function findDuplicateCandidates(data, requestedParentClueId) {
+    const payload = data || {};
+    const nameTrim = (payload.name || '').toString().trim();
+    const phoneTrim = (payload.phone || '').toString().trim();
+    const wechatTrim = (payload.wechat || '').toString().trim();
+    if (!(nameTrim || phoneTrim || wechatTrim) || requestedParentClueId) return [];
+    const rows = await query(
+      'SELECT id, createTime, doctor, taoRen, name, phone, wechat, intent, book FROM clues WHERE (phone = ? AND phone <> "") OR (wechat = ? AND wechat <> "") OR (name = ? AND name <> "") ORDER BY createTime DESC, id DESC',
+      [phoneTrim, wechatTrim, nameTrim]
+    );
+    const list = Array.isArray(rows) ? rows.slice() : [];
+    for (const row of list) {
+      row.expired = await computeExpiredAsync(row);
+    }
+    return list;
+  }
+
   function getCreateRequiredErrors(data) {
     const payload = data || {};
     const channel = (payload.channel || '').toString().trim();
@@ -130,33 +147,24 @@ function registerCluesIoRoutes(deps) {
         data.parentClueId && String(data.parentClueId).trim() !== '' ? String(data.parentClueId).trim() : null;
       let linkParentClueId = requestedParentClueId;
       try {
-        const nameTrim = (data.name || '').toString().trim();
-        const phoneTrim = (data.phone || '').toString().trim();
-        const wechatTrim = (data.wechat || '').toString().trim();
-        if ((nameTrim || phoneTrim || wechatTrim) && !requestedParentClueId) {
-          const dupRows = await query(
-            'SELECT id, createTime, doctor, taoRen, name, phone, wechat, intent, book FROM clues WHERE (phone = ? AND phone <> "") OR (wechat = ? AND wechat <> "") OR (name = ? AND name <> "") LIMIT 1',
-            [phoneTrim, wechatTrim, nameTrim]
-          );
-          if (dupRows && dupRows.length > 0) {
-            const dup = dupRows[0];
-            const expired = await computeExpiredAsync(dup);
-            if (expired) {
-              if (data && data.forceInsert) {
-                const dupDoctor = (dup.doctor || '').toString();
-                const reqDoctor = (data.doctor || '').toString();
-                if (dupDoctor && reqDoctor && dupDoctor === reqDoctor) {
-                  return res.status(409).json({ code: 409, msg: 'duplicate_same_doctor', existing: Object.assign({}, dup, { expired: expired }) });
-                }
-                markDupToExpire = dup.id;
-                markDupReason = '';
-              } else {
-                return res.status(409).json({ code: 409, msg: 'duplicate', existing: Object.assign({}, dup, { expired: expired }) });
-              }
-            } else {
-              // 活跃（未过期）的重复记录：无论 forceInsert 如何都拦截，防止产生重复 ID 线索
-              return res.status(409).json({ code: 409, msg: 'duplicate', existing: Object.assign({}, dup, { expired: false }) });
+        const dupRows = await findDuplicateCandidates(data, requestedParentClueId);
+        if (dupRows.length > 0) {
+          const activeDup = dupRows.find((dup) => !dup.expired);
+          if (activeDup) {
+            return res.status(409).json({ code: 409, msg: 'duplicate', existing: Object.assign({}, activeDup, { expired: false }) });
+          }
+
+          const dup = dupRows[0];
+          if (data && data.forceInsert) {
+            const dupDoctor = (dup.doctor || '').toString();
+            const reqDoctor = (data.doctor || '').toString();
+            if (dupDoctor && reqDoctor && dupDoctor === reqDoctor) {
+              return res.status(409).json({ code: 409, msg: 'duplicate_same_doctor', existing: Object.assign({}, dup, { expired: true }) });
             }
+            markDupToExpire = dup.id;
+            markDupReason = '';
+          } else {
+            return res.status(409).json({ code: 409, msg: 'duplicate', existing: Object.assign({}, dup, { expired: true }) });
           }
         }
       } catch (e) {
@@ -254,33 +262,24 @@ function registerCluesIoRoutes(deps) {
         data.parentClueId && String(data.parentClueId).trim() !== '' ? String(data.parentClueId).trim() : null;
       let linkParentClueId = requestedParentClueId;
       try {
-        const nameTrim = (data.name || '').toString().trim();
-        const phoneTrim = (data.phone || '').toString().trim();
-        const wechatTrim = (data.wechat || '').toString().trim();
-        if ((nameTrim || phoneTrim || wechatTrim) && !requestedParentClueId) {
-          const dupRows = await query(
-            'SELECT id, createTime, doctor, taoRen, name, phone, wechat, intent, book FROM clues WHERE (phone = ? AND phone <> "") OR (wechat = ? AND wechat <> "") OR (name = ? AND name <> "") LIMIT 1',
-            [phoneTrim, wechatTrim, nameTrim]
-          );
-          if (dupRows && dupRows.length > 0) {
-            const dup = dupRows[0];
-            const expired = await computeExpiredAsync(dup);
-            if (expired) {
-              if (data && data.forceInsert) {
-                const dupDoctor = (dup.doctor || '').toString();
-                const reqDoctor = (data.doctor || '').toString();
-                if (dupDoctor && reqDoctor && dupDoctor === reqDoctor) {
-                  return res.status(409).json({ code: 409, msg: 'duplicate_same_doctor', existing: Object.assign({}, dup, { expired: expired }) });
-                }
-                markDupToExpire = dup.id;
-                markDupReason = '';
-              } else {
-                return res.status(409).json({ code: 409, msg: 'duplicate', existing: Object.assign({}, dup, { expired: expired }) });
-              }
-            } else {
-              // 活跃（未过期）的重复记录：无论 forceInsert 如何都拦截，防止产生重复 ID 线索
-              return res.status(409).json({ code: 409, msg: 'duplicate', existing: Object.assign({}, dup, { expired: false }) });
+        const dupRows = await findDuplicateCandidates(data, requestedParentClueId);
+        if (dupRows.length > 0) {
+          const activeDup = dupRows.find((dup) => !dup.expired);
+          if (activeDup) {
+            return res.status(409).json({ code: 409, msg: 'duplicate', existing: Object.assign({}, activeDup, { expired: false }) });
+          }
+
+          const dup = dupRows[0];
+          if (data && data.forceInsert) {
+            const dupDoctor = (dup.doctor || '').toString();
+            const reqDoctor = (data.doctor || '').toString();
+            if (dupDoctor && reqDoctor && dupDoctor === reqDoctor) {
+              return res.status(409).json({ code: 409, msg: 'duplicate_same_doctor', existing: Object.assign({}, dup, { expired: true }) });
             }
+            markDupToExpire = dup.id;
+            markDupReason = '';
+          } else {
+            return res.status(409).json({ code: 409, msg: 'duplicate', existing: Object.assign({}, dup, { expired: true }) });
           }
         }
       } catch (e) {

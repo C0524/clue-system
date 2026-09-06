@@ -670,8 +670,8 @@ function registerStatsRoutes(deps) {
         const monthConsumerTreatmentFee = monthConsumerRows.reduce((sum, c) => sum + (Number(c.treatmentFee) || 0), 0);
         const monthSales = monthBaseSales + monthConsumerTreatmentFee;
         const monthUnitSales = monthArriveCount > 0 ? Number((monthSales / monthArriveCount).toFixed(2)) : 0;
-        const monthDealRate = monthBookCount > 0 ? Number(((monthConsumerCount / monthBookCount) * 100).toFixed(1)) : 0;
-        const monthDealRateAll = monthBookCountAll > 0 ? Number(((monthConsumerCountAll / monthBookCountAll) * 100).toFixed(1)) : 0;
+        const monthDealRate = monthArriveCount > 0 ? Number(((monthConsumerCount / monthArriveCount) * 100).toFixed(1)) : 0;
+        const monthDealRateAll = monthArriveCountAll > 0 ? Number(((monthConsumerCountAll / monthArriveCountAll) * 100).toFixed(1)) : 0;
         bookUserStat[name] = {
           name,
           todayBook: todayBookedRows.length,
@@ -740,7 +740,7 @@ function registerStatsRoutes(deps) {
         const monthSales = Number(b.monthSales) || 0;
         const monthUnitSales = monthArriveCount > 0 ? Number((monthSales / monthArriveCount).toFixed(2)) : 0;
         const monthConsumerCount = isConsultRole ? (Number(b.monthConsumerCountAll) || 0) : (Number(b.monthConsumerCount) || 0);
-        const monthDealRate = monthBookTotal > 0 ? Number(((monthConsumerCount / monthBookTotal) * 100).toFixed(1)) : 0;
+        const monthDealRate = monthArriveCount > 0 ? Number(((monthConsumerCount / monthArriveCount) * 100).toFixed(1)) : 0;
         return {
           name: t.name,
           role,
@@ -828,7 +828,7 @@ function registerStatsRoutes(deps) {
       const totalMonthArrive = bookSetMonthArrive.size;
       const totalMonthConsumers = bookSetMonthConsumers.size;
       const totalMonthUnitSales = totalMonthArrive > 0 ? Number((monthSalesTotal / totalMonthArrive).toFixed(2)) : 0;
-      const totalMonthDealRate = totalMonthBook > 0 ? Number(((totalMonthConsumers / totalMonthBook) * 100).toFixed(1)) : 0;
+      const totalMonthDealRate = totalMonthArrive > 0 ? Number(((totalMonthConsumers / totalMonthArrive) * 100).toFixed(1)) : 0;
       const personnelTotals = {
         taoTotals: {
           todayTotal: taoSetToday.size,

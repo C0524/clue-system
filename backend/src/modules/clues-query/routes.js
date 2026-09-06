@@ -321,7 +321,25 @@ function registerCluesQueryRoutes(deps) {
 
       sql += ' ORDER BY taoRen ASC';
       const rows = await query(sql, params);
-      return res.json({ code: 200, data: rows || [] });
+
+      // 对主管/超级管理员：额外合并 users 表中角色为"套电"的账号，
+      // 确保新增套电账号在未写入任何话单前也能出现在筛选下拉中
+      let merged = rows || [];
+      if (req.user.role === '主管' || req.user.role === '超级管理员') {
+        try {
+          const userRows = await query("SELECT username AS name FROM users WHERE role = '套电' ORDER BY username ASC");
+          const existingNames = new Set(merged.map(r => r.name));
+          (userRows || []).forEach(r => {
+            if (r.name && !existingNames.has(r.name)) {
+              merged.push({ name: r.name });
+              existingNames.add(r.name);
+            }
+          });
+          merged.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        } catch (_) {}
+      }
+
+      return res.json({ code: 200, data: merged });
     } catch (e) {
       console.error('listTaoRenOptions error', e);
       return res.json({ code: 500, msg: '查询失败' });

@@ -64,6 +64,7 @@
           if (hasBookingErrors) {
             vm.showMsg('请先完善预约时间和挂号费后再保存', 'error');
             vm.isLoading = false;
+            vm.detailSaving = false;
             return;
           }
         }
@@ -90,6 +91,7 @@
         }
         if (missing.length > 0) {
           vm.isLoading = false;
+          vm.detailSaving = false;
           return;
         }
       }
@@ -98,7 +100,7 @@
     }
 
     try {
-      var keys = ['channel', 'name', 'gender', 'age', 'phone', 'wechat', 'doctor', 'regDoctor', 'department', 'intent', 'bookUser', 'book', 'visitDate', 'visitMode', 'medicineDay', 'dosageForm', 'cost', 'regFee', 'treatmentFee', 'content', 'preCase', 'createTime'];
+      var keys = ['taoRen', 'channel', 'name', 'gender', 'age', 'phone', 'wechat', 'doctor', 'regDoctor', 'department', 'intent', 'bookUser', 'book', 'visitDate', 'visitMode', 'medicineDay', 'dosageForm', 'cost', 'regFee', 'treatmentFee', 'content', 'preCase', 'createTime'];
       var clientProtected = ['name', 'phone', 'wechat', 'gender', 'age'];
       var updates = {};
 

@@ -1314,7 +1314,18 @@
               <!-- 第4行：套电、渠道、意向专家/挂号专家 -->
               <div class="detail-line detail-grid">
                 <div class="detail-label">套电：</div>
-                <div class="detail-val">{{ currentDetail.taoRen || '-' }}</div>
+                <div class="detail-val" v-if="!detailEditing">{{ currentDetail.taoRen || '-' }}</div>
+                <div v-else style="flex:0 0 var(--detail-mid-w)">
+                  <template v-if="user && user.role === '超级管理员'">
+                    <select v-model="editDetail.taoRen" style="width:100%">
+                      <option value="">请选择</option>
+                      <option v-for="name in getTaoRenSelectOptions()" :key="name" :value="name">{{ name }}</option>
+                    </select>
+                  </template>
+                  <template v-else>
+                    <input :value="currentDetail.taoRen || '-'" disabled style="width:100%" />
+                  </template>
+                </div>
 
                 <div class="detail-label">渠道：</div>
                 <div class="detail-val" v-if="!detailEditing">{{ currentDetail.channel || '-' }}</div>
@@ -1711,7 +1722,18 @@
       <div class="detail-box" style="max-width:760px;">
         <div class="detail-close" @click="closeEdit">×</div>
         <h3 style="text-align:center;margin-bottom:15px;">修改线索</h3>
-        <div class="input"><label>套电人员</label><input :value="editForm.taoRen || user.username || ''" disabled></div>
+        <div class="input">
+          <label>套电人员</label>
+          <template v-if="user && user.role === '超级管理员'">
+            <select v-model="editForm.taoRen" style="width:100%">
+              <option value="">请选择</option>
+              <option v-for="name in getTaoRenSelectOptions()" :key="name" :value="name">{{ name }}</option>
+            </select>
+          </template>
+          <template v-else>
+            <input :value="editForm.taoRen || user.username || ''" disabled>
+          </template>
+        </div>
         <div class="input"><label>渠道</label><select v-model="editForm.channel"><option value="">请选择</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="其他">其他</option></select></div>
         <div class="input"><label>客户姓名</label><input v-model="editForm.name"></div>
         <div class="input"><label>性别</label><select v-model="editForm.gender"><option value="">请选择</option><option value="男">男</option><option value="女">女</option></select></div>
@@ -3169,6 +3191,25 @@ window.app = new Vue({
         return this.user.role === '套电' && taoRen && taoRen === String(this.user.username || '').trim();
       }catch(e){ return false; }
     },
+    getTaoRenSelectOptions(){
+      const options = [];
+      const seen = new Set();
+      const addOption = (value) => {
+        const name = (value || '').toString().trim();
+        if(!name || seen.has(name)) return;
+        seen.add(name);
+        options.push(name);
+      };
+      (this.userList || []).forEach((u) => {
+        if(u && String(u.role || '').trim() === '套电' && u.username){
+          addOption(u.username);
+        }
+      });
+      (this.taoRenList || []).forEach((name) => addOption(name));
+      const current = (this.editForm && this.editForm.taoRen) || (this.editDetail && this.editDetail.taoRen) || (this.form && this.form.taoRen) || (this.currentDetail && this.currentDetail.taoRen) || '';
+      addOption(current);
+      return options;
+    },
     
     // 页面加载时尝试从 localStorage 恢复登录状态
     async mountedRecover(){
@@ -3677,6 +3718,7 @@ window.app = new Vue({
             if(hasBookingErrors){
               this.showMsg('请先完善预约时间和挂号费后再保存','error');
               this.isLoading = false;
+              this.detailSaving = false;
               return;
             }
           }
@@ -3701,13 +3743,14 @@ window.app = new Vue({
           if(missing.length > 0){
             // keep modal open and display field-level errors
             this.isLoading = false;
+            this.detailSaving = false;
             return;
           }
         }
       }catch(e){ console.warn('validate required for 医助 failed', e); }
       try{
         // 将 editDetail 中变更的字段逐个提交（使用现有的 updateInfo 以保证行为一致）
-        const keys = ['channel','name','gender','age','phone','wechat','doctor','regDoctor','department','intent','bookUser','book','visitDate','visitMode','medicineDay','dosageForm','cost','regFee','treatmentFee','content','preCase','createTime'];
+        const keys = ['taoRen','channel','name','gender','age','phone','wechat','doctor','regDoctor','department','intent','bookUser','book','visitDate','visitMode','medicineDay','dosageForm','cost','regFee','treatmentFee','content','preCase','createTime'];
         const clientProtected = ['name','phone','wechat','gender','age'];
         // Collect updates and send in one atomic request to avoid partial writes
         const updates = {};
@@ -5422,7 +5465,7 @@ window.app = new Vue({
             Number(this.personnelTotals ? this.personnelTotals.bookTotals.monthConsumerCount : this.sumField(source,'monthConsumerCount')) || 0,
             Number(this.personnelTotals ? this.personnelTotals.bookTotals.monthSales : this.sumField(source,'monthSales')) || 0,
             Number(this.personnelTotals ? this.personnelTotals.bookTotals.monthUnitSales : (this.sumField(source,'monthArriveCount') ? (this.sumField(source,'monthSales') / this.sumField(source,'monthArriveCount')) : 0)) || 0,
-            this.formatRate(this.personnelTotals ? this.personnelTotals.bookTotals.monthDealRate : (this.sumField(source,'monthBook') ? (this.sumField(source,'monthConsumerCount') / this.sumField(source,'monthBook') * 100) : 0))
+            this.formatRate(this.personnelTotals ? this.personnelTotals.bookTotals.monthDealRate : (this.sumField(source,'monthArriveCount') ? (this.sumField(source,'monthConsumerCount') / this.sumField(source,'monthArriveCount') * 100) : 0))
           ]);
         }
         return { fileName: `套电咨询统计_${month}.xlsx`, sheetName: '套电咨询统计', headers, rows };

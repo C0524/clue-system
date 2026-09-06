@@ -203,6 +203,7 @@ function registerCluesWriteRoutes(deps) {
       if (!id) return res.json({ code: 400, msg: 'id 为空' });
       if (!ALLOWED_CLUE_UPDATE_KEYS.has(key)) return res.status(400).json({ code: 400, msg: '不允许更新该字段' });
       if (key === 'createTime' && req.user.role !== '超级管理员') return res.status(403).json({ code: 403, msg: '无权限修改创建时间' });
+      if (key === 'taoRen' && req.user.role !== '超级管理员') return res.json({ code: 200, msg: 'skipped taoRen' });
       const beforeRows = await query('SELECT id, parentClueId, phone, wechat FROM clues WHERE id = ? LIMIT 1', [id]);
       const beforeRow = beforeRows && beforeRows[0] ? beforeRows[0] : null;
       const clearParentLinkAfterUpdate = shouldClearParentLink(beforeRow, { [key]: val });
@@ -313,6 +314,11 @@ function registerCluesWriteRoutes(deps) {
       const incomingKeys = Object.keys(updates || {});
       const invalidKeys = incomingKeys.filter((k) => !ALLOWED_CLUE_UPDATE_KEYS.has(k));
       if (invalidKeys.length > 0) return res.status(400).json({ code: 400, msg: '存在非法字段: ' + invalidKeys.join(',') });
+
+      // 权限检查：只有超级管理员可以修改 taoRen，其他角色静默忽略
+      if (Object.prototype.hasOwnProperty.call(updates, 'taoRen') && req.user.role !== '超级管理员') {
+        delete updates.taoRen;
+      }
 
       const protectedKeys = ['name', 'phone', 'wechat', 'gender', 'age'];
       const special = ['intent', 'visitDate', 'book', 'arrive'];
@@ -475,6 +481,10 @@ function registerCluesWriteRoutes(deps) {
       if (invalidKeys.length > 0) return res.status(400).json({ code: 400, msg: '存在非法字段: ' + invalidKeys.join(',') });
       if (Object.prototype.hasOwnProperty.call(updates, 'createTime') && req.user.role !== '超级管理员') {
         return res.status(403).json({ code: 403, msg: '无权限修改创建时间' });
+      }
+      // 非超管静默忽略 taoRen，不阻断整个保存
+      if (Object.prototype.hasOwnProperty.call(updates, 'taoRen') && req.user.role !== '超级管理员') {
+        delete updates.taoRen;
       }
       const sets = [];
       const params = [];

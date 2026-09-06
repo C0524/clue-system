@@ -1,4 +1,11 @@
 (function (global) {
+  function resolveTaoRenForEdit(user, selectedValue) {
+    if (user && user.role === '超级管理员') {
+      return selectedValue;
+    }
+    return (user && user.username) || selectedValue;
+  }
+
   function openEdit(vm, item) {
     vm.editingId = item.id;
     vm.editForm = {
@@ -87,7 +94,11 @@
 
     vm.isLoading = true;
     try {
-      updates.taoRen = (vm.user && vm.user.username) || updates.taoRen;
+      if (vm.user && vm.user.role === '超级管理员') {
+        updates.taoRen = resolveTaoRenForEdit(vm.user, updates.taoRen);
+      } else {
+        delete updates.taoRen;
+      }
     } catch (_) {}
     try {
       if (updates.book === '已预约' && (!updates.bookUser || updates.bookUser === '')) {
@@ -123,5 +134,6 @@
     closeEdit: closeEdit,
     fetchAndApplyCurrentDetail: fetchAndApplyCurrentDetail,
     saveEdit: saveEdit,
+    resolveTaoRenForEdit: resolveTaoRenForEdit,
   };
 })(window);

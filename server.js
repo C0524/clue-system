@@ -29,7 +29,7 @@ const accessDebug = createAccessDebugLogger({ baseDir: __dirname, env: process.e
 
 const ALLOWED_CLUE_UPDATE_KEYS = new Set([
   'channel', 'name', 'gender', 'age', 'phone', 'wechat', 'doctor', 'department',
-  'regDoctor',
+  'regDoctor', 'taoRen',
   'intent', 'visitStatus', 'bookUser', 'book', 'arrive', 'medicineDay', 'dosageForm',
   'cost', 'regFee', 'treatmentFee', 'refundAmount', 'refundReason', 'visitMode', 'visitDate', 'createTime', 'content',
   'preCase'
