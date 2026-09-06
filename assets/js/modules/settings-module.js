@@ -1,4 +1,79 @@
 (function (global) {
+  async function listUsers(vm) {
+    return (global.ClueUsersApi && typeof global.ClueUsersApi.listUsers === 'function')
+      ? await global.ClueUsersApi.listUsers(vm)
+      : await vm.apiCall('/api/users');
+  }
+
+  async function changeUserPasswordReq(vm, username, newPassword) {
+    var payload = { username: username, newPassword: newPassword };
+    return (global.ClueUsersApi && typeof global.ClueUsersApi.changeUserPassword === 'function')
+      ? await global.ClueUsersApi.changeUserPassword(vm, payload)
+      : await vm.apiCall('/api/changeUserPassword', { method: 'POST', body: JSON.stringify(payload) });
+  }
+
+  async function updateUserRoleReq(vm, username, role) {
+    var payload = { username: username, role: role };
+    return (global.ClueUsersApi && typeof global.ClueUsersApi.updateUserRole === 'function')
+      ? await global.ClueUsersApi.updateUserRole(vm, payload)
+      : await vm.apiCall('/api/updateUserRole', { method: 'POST', body: JSON.stringify(payload) });
+  }
+
+  async function listDoctors(vm) {
+    return (global.ClueDoctorsApi && typeof global.ClueDoctorsApi.listDoctors === 'function')
+      ? await global.ClueDoctorsApi.listDoctors(vm)
+      : await vm.apiCall('/api/doctors');
+  }
+
+  async function addUserReq(vm, payload) {
+    return (global.ClueUsersApi && typeof global.ClueUsersApi.addUser === 'function')
+      ? await global.ClueUsersApi.addUser(vm, payload)
+      : await vm.apiCall('/api/addUser', { method: 'POST', body: JSON.stringify(payload || {}) });
+  }
+
+  async function delUserReq(vm, payload) {
+    return (global.ClueUsersApi && typeof global.ClueUsersApi.delUser === 'function')
+      ? await global.ClueUsersApi.delUser(vm, payload)
+      : await vm.apiCall('/api/delUser', { method: 'POST', body: JSON.stringify(payload || {}) });
+  }
+
+  async function addDoctorReq(vm, payload) {
+    return (global.ClueDoctorsApi && typeof global.ClueDoctorsApi.addDoctor === 'function')
+      ? await global.ClueDoctorsApi.addDoctor(vm, payload)
+      : await vm.apiCall('/api/addDoctor', { method: 'POST', body: JSON.stringify(payload || {}) });
+  }
+
+  async function updateDoctorReq(vm, payload) {
+    return (global.ClueDoctorsApi && typeof global.ClueDoctorsApi.updateDoctor === 'function')
+      ? await global.ClueDoctorsApi.updateDoctor(vm, payload)
+      : await vm.apiCall('/api/updateDoctor', { method: 'POST', body: JSON.stringify(payload || {}) });
+  }
+
+  async function delDoctorReq(vm, payload) {
+    return (global.ClueDoctorsApi && typeof global.ClueDoctorsApi.delDoctor === 'function')
+      ? await global.ClueDoctorsApi.delDoctor(vm, payload)
+      : await vm.apiCall('/api/delDoctor', { method: 'POST', body: JSON.stringify(payload || {}) });
+  }
+
+  async function fetchAssignableRows(vm, payload) {
+    if (vm.assignSource === 'publicPool') {
+      if (global.ClueCluesApi && typeof global.ClueCluesApi.publicPoolList === 'function') {
+        return global.ClueCluesApi.publicPoolList(vm, payload);
+      }
+      return vm.apiCall('/api/publicPoolList', { method: 'POST', body: JSON.stringify(payload) });
+    }
+    if (global.ClueCluesApi && typeof global.ClueCluesApi.list === 'function') {
+      return global.ClueCluesApi.list(vm, payload);
+    }
+    return vm.apiCall('/api/list', { method: 'POST', body: JSON.stringify(payload) });
+  }
+
+  async function assignCluesReq(vm, payload) {
+    return (global.ClueCluesApi && typeof global.ClueCluesApi.assignClues === 'function')
+      ? await global.ClueCluesApi.assignClues(vm, payload)
+      : await vm.apiCall('/api/assignClues', { method: 'POST', body: JSON.stringify(payload || {}) });
+  }
+
   function buildConsultList(vm) {
     vm.consultList = (vm.userList || []).filter(function (u) {
       return u && (u.role === '咨询' || u.role === '套电' || u.role === '医助' || u.role === '主管');
@@ -18,9 +93,7 @@
       }
     } catch (_) {}
 
-    var d = (global.ClueUsersApi && typeof global.ClueUsersApi.listUsers === 'function')
-      ? await global.ClueUsersApi.listUsers(vm)
-      : await vm.apiCall('/api/users');
+    var d = await listUsers(vm);
 
     if (d && d.code === 200) {
       vm.userList = d.data || [];
@@ -35,9 +108,7 @@
       var np = prompt('请输入 ' + username + ' 的新密码：');
       if (!np) return;
       vm.isLoading = true;
-      var res = (global.ClueUsersApi && typeof global.ClueUsersApi.changeUserPassword === 'function')
-        ? await global.ClueUsersApi.changeUserPassword(vm, { username: username, newPassword: np })
-        : await vm.apiCall('/api/changeUserPassword', { method: 'POST', body: JSON.stringify({ username: username, newPassword: np }) });
+      var res = await changeUserPasswordReq(vm, username, np);
       vm.isLoading = false;
       if (res && res.code === 200) {
         vm.showMsg('密码修改成功');
@@ -62,9 +133,7 @@
         return;
       }
       vm.isLoading = true;
-      var res = (global.ClueUsersApi && typeof global.ClueUsersApi.updateUserRole === 'function')
-        ? await global.ClueUsersApi.updateUserRole(vm, { username: username, role: role })
-        : await vm.apiCall('/api/updateUserRole', { method: 'POST', body: JSON.stringify({ username: username, role: role }) });
+      var res = await updateUserRoleReq(vm, username, role);
       vm.isLoading = false;
       if (res && res.code === 200) {
         vm.showMsg('角色修改成功');
@@ -80,9 +149,7 @@
   }
 
   async function getDoctors(vm) {
-    var d = (global.ClueDoctorsApi && typeof global.ClueDoctorsApi.listDoctors === 'function')
-      ? await global.ClueDoctorsApi.listDoctors(vm)
-      : await vm.apiCall('/api/doctors');
+    var d = await listDoctors(vm);
     if (d && d.code === 200) vm.doctorList = d.data;
   }
 
@@ -91,12 +158,7 @@
       vm.showMsg('请输入用户名和密码', 'error');
       return;
     }
-    var data = (global.ClueUsersApi && typeof global.ClueUsersApi.addUser === 'function')
-      ? await global.ClueUsersApi.addUser(vm, { username: vm.newUser, password: vm.newPwd, role: vm.newRole })
-      : await vm.apiCall('/api/addUser', {
-          method: 'POST',
-          body: JSON.stringify({ username: vm.newUser, password: vm.newPwd, role: vm.newRole })
-        });
+    var data = await addUserReq(vm, { username: vm.newUser, password: vm.newPwd, role: vm.newRole });
     if (data && data.code === 200) {
       vm.showMsg('用户添加成功');
       vm.newUser = '';
@@ -108,12 +170,7 @@
 
   async function delUser(vm, username) {
     if (!confirm('确定删除用户 ' + username + ' 吗？')) return;
-    var data = (global.ClueUsersApi && typeof global.ClueUsersApi.delUser === 'function')
-      ? await global.ClueUsersApi.delUser(vm, { username: username })
-      : await vm.apiCall('/api/delUser', {
-          method: 'POST',
-          body: JSON.stringify({ username: username })
-        });
+    var data = await delUserReq(vm, { username: username });
     if (data && data.code === 200) {
       vm.showMsg('用户删除成功');
       await getUsers(vm);
@@ -126,12 +183,7 @@
       return;
     }
     var payload = { name: vm.newDoc.name, dept: vm.newDoc.dept, operator: vm.newDoc.operator };
-    var data = (global.ClueDoctorsApi && typeof global.ClueDoctorsApi.addDoctor === 'function')
-      ? await global.ClueDoctorsApi.addDoctor(vm, payload)
-      : await vm.apiCall('/api/addDoctor', {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
+    var data = await addDoctorReq(vm, payload);
     if (data && data.code === 200) {
       vm.showMsg('医生添加成功');
       vm.newDoc = { name: '', dept: '', operator: '' };
@@ -146,20 +198,11 @@
   async function saveDoctorEdit(vm) {
     if (!vm.editingDoctor || !vm.editingDoctor.name) return;
     try {
-      var res = (global.ClueDoctorsApi && typeof global.ClueDoctorsApi.updateDoctor === 'function')
-        ? await global.ClueDoctorsApi.updateDoctor(vm, {
-            name: vm.editingDoctor.name,
-            dept: vm.editingDoctor.dept,
-            operator: vm.editingDoctor.operator
-          })
-        : await vm.apiCall('/api/updateDoctor', {
-            method: 'POST',
-            body: JSON.stringify({
-              name: vm.editingDoctor.name,
-              dept: vm.editingDoctor.dept,
-              operator: vm.editingDoctor.operator
-            })
-          });
+      var res = await updateDoctorReq(vm, {
+        name: vm.editingDoctor.name,
+        dept: vm.editingDoctor.dept,
+        operator: vm.editingDoctor.operator
+      });
       if (res && res.code === 200) {
         vm.showMsg('医生信息更新成功');
         vm.editingDoctor = null;
@@ -179,12 +222,7 @@
 
   async function delDoctor(vm, name) {
     if (!confirm('确定删除医生 ' + name + ' 吗？')) return;
-    var data = (global.ClueDoctorsApi && typeof global.ClueDoctorsApi.delDoctor === 'function')
-      ? await global.ClueDoctorsApi.delDoctor(vm, { name: name })
-      : await vm.apiCall('/api/delDoctor', {
-          method: 'POST',
-          body: JSON.stringify({ name: name })
-        });
+    var data = await delDoctorReq(vm, { name: name });
     if (data && data.code === 200) {
       vm.showMsg('医生删除成功');
       await getDoctors(vm);
@@ -201,9 +239,7 @@
     } catch (_) {}
     vm.assignLoading = true;
     try {
-      var usersResp = (global.ClueUsersApi && typeof global.ClueUsersApi.listUsers === 'function')
-        ? await global.ClueUsersApi.listUsers(vm)
-        : await vm.apiCall('/api/users');
+      var usersResp = await listUsers(vm);
       if (usersResp && usersResp.code === 200 && Array.isArray(usersResp.data)) {
         var allUsers = usersResp.data;
         var consultUsers = allUsers.filter(function (u) {
@@ -224,7 +260,7 @@
       var payload = Object.assign({}, vm.search || {}, { all: true });
       try {
         var raceRes = await Promise.race([
-          vm.apiCall(vm.assignSource === 'publicPool' ? '/api/publicPoolList' : '/api/list', { method: 'POST', body: JSON.stringify(payload) }),
+          fetchAssignableRows(vm, payload),
           new Promise(function (resolve) { setTimeout(function () { resolve({ timeout: true }); }, 3000); })
         ]);
         if (raceRes && raceRes.timeout) {
@@ -292,9 +328,7 @@
       }
 
       vm.assignLoading = true;
-      var res = (global.ClueCluesApi && typeof global.ClueCluesApi.assignClues === 'function')
-        ? await global.ClueCluesApi.assignClues(vm, body)
-        : await vm.apiCall('/api/assignClues', { method: 'POST', body: JSON.stringify(body) });
+      var res = await assignCluesReq(vm, body);
       vm.assignLoading = false;
       if (res && res.code === 200) {
         var msg = '分配完成：已分配 ' + (res.data && res.data.assigned ? res.data.assigned : 0) + ' 条，跳过 ' + (res.data && res.data.skipped ? res.data.skipped : 0) + ' 条';

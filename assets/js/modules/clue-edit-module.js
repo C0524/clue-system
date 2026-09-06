@@ -106,10 +106,13 @@
       }
     } catch (_) {}
 
-    const data = await vm.apiCall('/api/updateClue', {
-      method: 'POST',
-      body: JSON.stringify({ id: vm.editingId, updates })
-    });
+    const payload = { id: vm.editingId, updates };
+    const data = (global.ClueCluesApi && typeof global.ClueCluesApi.updateClue === 'function')
+      ? await global.ClueCluesApi.updateClue(vm, payload)
+      : await vm.apiCall('/api/updateClue', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
 
     vm.isLoading = false;
     if (data && data.code === 200) {

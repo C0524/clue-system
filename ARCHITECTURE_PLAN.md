@@ -230,6 +230,7 @@ clue-system/
 
 ### 已完成
 - 仓库清理（归档优先）：已将临时脚本、一次性输出、历史调试日志归档到 `archive/cleanup-2026-08-02/`，并新增归档说明 `archive/cleanup-2026-08-02/README.md`。
+- 仓库清理（第二批，2026-09-06）：已新增 `archive/cleanup-2026-09-06-batch2/`，归档 `tools/duplicate_active_last_import_*.xlsx`、`tools/export_last_duplicate_active.js`、`tools/fix_bookuser_1781311633816.js`、`tools/tunnel_watchdog.log`。
 - P1 壳层拆分（第一步）：
    - 新增 `backend/src/app.js`（兼容入口，复用现有 Express app）。
    - 新增 `backend/src/server.js`（兼容启动入口，复用现有启动逻辑）。
@@ -238,6 +239,28 @@ clue-system/
    - 新增 `backend/src/common/logger/access-debug.js`，下沉访问采样日志与导入调试日志逻辑。
    - 新增 `backend/src/common/utils/time.js` 与 `backend/src/common/utils/expired.js`，下沉时间格式化与过期判定纯函数。
    - 新增 `backend/src/common/storage/r2.js`，下沉 R2 客户端初始化、桶名/域名解析与对象 URL 构造。
+   - 新增 `backend/src/bootstrap/db-init.js`，下沉启动期数据库自检/兼容迁移逻辑（字段补齐、表存在性检查、bookTime 回填、expired 字段保障）。
+   - 新增 `backend/src/common/utils/excel.js` 与 `backend/src/bootstrap/prewarm.js`，下沉 Excel 日期转换与启动预热逻辑。
+   - 新增 `backend/src/common/services/clue-expired.js`，下沉 `computeExpiredAsync` 与 `clues.expired` 字段兼容回退探测逻辑。
+   - 新增 `backend/src/bootstrap/shutdown.js`，下沉 `SIGINT/SIGTERM` 优雅退出逻辑（连接池关闭后退出）。
+   - 新增 `backend/src/bootstrap/booktime-backfill.js`，下沉预约时间 `bookTime` 启动回填逻辑（由 `db-init` 继续编排调用）。
+   - 新增 `backend/src/bootstrap/register-routes.js`，下沉各业务模块路由装配逻辑（`server.js` 改为统一注入注册）。
+   - 新增 `backend/src/modules/debug/routes.js`，将 `/api/debug/*` 调试路由从入口迁移到模块层并接入统一装配器。
+   - 新增 `backend/src/modules/images/routes.js`，将图片上传/查询/删除/代理与图片关联管理接口从入口迁移到模块层。
+   - 新增 `backend/src/modules/system/routes.js`，将 `/api/_health` 与 `/api/server-version` 系统路由从入口迁移到模块层。
+   - 新增 `backend/src/bootstrap/import-debug-middleware.js`，将 `/api/importClues` 调试中间件从入口迁移到 bootstrap 注册。
+   - 修复 `backend/src/bootstrap/register-routes.js` 的依赖引用（R2 参数统一走解构注入，避免误用未定义变量）。
+   - 新增 `backend/src/bootstrap/app-setup.js` 与 `backend/src/bootstrap/access-log-middleware.js`，下沉基础 app 装配与 `/api` 访问诊断中间件。
+   - 新增 `backend/src/bootstrap/db-pool-init.js`，下沉 MySQL 初始化与启动迁移编排，`server.js` 改为显式注入调用。
+   - `startServer` 改为等待数据库初始化完成后再监听端口，避免启动期请求命中未就绪连接池的时序风险。
+   - 新增 `backend/src/bootstrap/db-runtime.js`，集中管理 `setPool/getPool/query/execute`，`server.js` 去除内联数据库运行时函数。
+   - 新增 `backend/src/bootstrap/dependency-context.js`，集中构建数据库初始化与路由注册依赖对象，减少入口装配噪音。
+   - 新增 `backend/src/common/constants/clue-update-keys.js`，下沉线索可更新字段白名单常量。
+   - 新增 `backend/src/common/services/add-log.js`，下沉日志写入函数 `addLog`，入口改为工厂注入。
+   - 新增 `backend/src/config/runtime.js` 与 `backend/src/bootstrap/server-meta.js`，下沉环境开关与启动参数组装（调试开关、端口、启动时间元信息）。
+   - 新增 `backend/src/bootstrap/start-server.js`，下沉服务启动控制流（等待 DB 初始化后监听端口与异步预热）。
+   - 新增 `backend/src/bootstrap/compose-server.js`，统一组装 app/数据库初始化/路由注册/启动流程；根入口 `server.js` 收敛为极简壳层。
+   - 新增 `backend/src/bootstrap/server-singleton.js`，统一复用同一 server 组合实例；`server.js`/`backend/src/app.js`/`backend/src/server.js` 改为直接引用该单例。
    - `server.js` 已改为引用上述模块，减少入口文件内聚复杂度且保持行为不变。
 - P3 前端 API 拆分（第一步）：
    - 新增 `assets/js/http-client.js` 作为统一 HTTP 层。
@@ -247,6 +270,28 @@ clue-system/
    - `assets/js/auth-client.js` 登录逻辑已改为优先调用 `auth-api`（保留旧回退逻辑）。
    - `index.html` 中 `getList/getPublicPoolList/getBookList/getUsers/导出列表/修改密码/修改角色` 已优先改走 API 模块（保留回退逻辑）。
    - `index.html` 中回访、复诊排班、图片查询删除、导入确认、未回访统计等关键调用已优先改走 API 模块（保留回退逻辑）。
+   - 修复 `assets/js/api-client.js` 与 `assets/js/http-client.js`：对 `FormData` 请求不再强制注入 `application/json`，避免上传接口请求头异常。
+   - `assets/js/visits-api.js` 新增 `uploadImage`，`index.html` 上传流程改为优先走 API 模块（保留回退逻辑）。
+   - 新增 `assets/js/logs-api.js`，`index.html` 日志查询改为优先走 API 模块（保留回退逻辑）。
+   - `assets/js/clues-api.js` 补齐 `saveClue/updateClueField/updateClueMany/deleteClue`，`index.html` 线索新增/单字段更新/批量更新/删除改为优先走 API 模块（保留回退逻辑）。
+   - `index.html` 中分配弹窗、用户管理、医生管理、套电选项获取调用改为优先走 `clues-api/users-api/doctors-api`（保留回退逻辑）。
+   - `assets/js/clues-api.js` 新增 `listTaoRenOptions`，收敛筛选选项请求入口。
+   - `index.html` 中 `updateInfo(key=show)` 与 `openVisit` 的回访请求改为优先走 `visits-api`（保留回退逻辑）。
+   - `assets/js/clues-api.js` 的 `exportClues` 扩展为兼容 `ids` 与筛选对象两种入参；`index.html` 的 `exportData` 改为优先走 `clues-api`（保留回退逻辑）。
+   - `index.html` 的 `fetchClueById` 与新建线索重复校验 `dupResp` 改为优先走 `clues-api.list`（保留回退逻辑）。
+   - `assets/js/stats-api.js` 新增 `statAll`；`index.html` 的 `getStatAll` 改为优先走 `stats-api`（保留回退逻辑）。
+   - 新增 `assets/js/system-api.js`，`index.html` 的后端版本轮询（`/api/server-version`）改为优先走 `system-api`（保留回退逻辑）。
+   - `assets/js/clues-api.js` 新增 `exportByVisitDate`（二进制导出封装）；`index.html` 的 `exportByVisitDate` 改为优先走 `clues-api`（保留回退逻辑）。
+   - `index.html` 的 `uploadRevisitImage` 改为优先走 `visits-api.uploadImage`（保留回退逻辑），继续减少页面层直接网络请求。
+   - `assets/js/modules/settings-module.js` 的分配弹窗筛选计数查询改为优先走 `clues-api.list/publicPoolList`（保留回退与超时保护）。
+   - `assets/js/clues-api.js` 新增 `updateClue`；`assets/js/modules/clue-edit-module.js` 的编辑保存与 `assets/js/modules/clue-detail-module.js` 的详情批量更新改为优先走 `clues-api`（保留回退逻辑）。
+   - `assets/js/modules/revisit-module.js` 抽取 `listVisits` helper，合并多处回访列表加载分支，保持 `visits-api` 优先与回退语义不变。
+   - `assets/js/modules/clue-detail-module.js` 抽取 `listVisits/clueImages/updateVisit/createVisit/associateImagesToVisit` helper，合并详情编辑与轮询中的重复分支，保持行为不变。
+   - `assets/js/modules/revisit-module.js` 继续抽取 `revisitList/expertSchedule/addVisit/updateVisit/scheduleRevisit` helper，进一步减少重复分支并保持行为不变。
+   - `assets/js/modules/settings-module.js` 抽取 `listUsers/listDoctors/addUser/delUser/addDoctor/updateDoctor/delDoctor/assignClues` 等 helper，并统一分配弹窗筛选计数请求入口，减少重复回退样板。
+   - `index.html` 抽取 `fetchVisitsByClueId/fetchClueImagesByClueId` helper，并替换 `addInlineVisit/updateInfo/openDetail/openVisit/saveDetailEdits` 中多处重复调用，减少页面层样板分支。
+   - `index.html` 继续抽取 `fetchUsers/fetchDoctors/createUser/removeUser/resetUserPassword/setUserRole/createDoctor/saveDoctor/removeDoctor/fetchAssignableRows/assignClues` helper，收敛设置区与分配弹窗重复分支。
+   - `index.html` 新增并接入 `fetchClues/saveClue/updateClueField/updateClueMany/deleteClueById/fetchExpiredCount/fetchBookList/fetchTaoRenOptions/exportClues/exportByVisitDateReq` helper，已收敛 `getList/getPublicPoolList/getBookList/updateInfo/delClue/getTaoRen/fetchClueById/saveRefundEdits/saveDetailEdits/exportListByCurrentFilters/exportData/exportByVisitDate` 的重复三元分支。
    - 新增 `assets/js/doctors-api.js`，并扩展 `users-api/clues-api` 长尾接口封装。
    - `settings-module` 内用户/医生管理与分配相关接口已优先改走 API 模块（保留回退逻辑）。
    - `index.html` 已接入新脚本，不影响原有页面行为。
@@ -267,6 +312,8 @@ clue-system/
 - P6 最小回归脚本（第一步）：
    - 新增 `tests/smoke-api.js`，覆盖 `/api/_health`、`/api/login`、`/api/list`、`/api/updateClue` 主链路。
    - 新增 npm 脚本 `test:smoke`（`node tests/smoke-api.js`）。
+   - 复跑前置条件：需先设置环境变量 `SMOKE_USERNAME` 与 `SMOKE_PASSWORD`；未设置时脚本会按预期直接失败退出。
+   - 当前状态说明（2026-09-06）：已使用 `SMOKE_USERNAME/SMOKE_PASSWORD` 复跑，`health/login/list/updateClue` 全链路 PASS。
 
 - P4 CSS 分层文件化（第一步）：
    - 新增 `assets/css/tokens.css`，承接主题与详情布局变量（含移动端变量覆盖）。

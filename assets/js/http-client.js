@@ -7,7 +7,8 @@
     // Fallback: keep behavior predictable even if api-client fails to load.
     const opts = Object.assign({}, options || {});
     const headers = Object.assign({}, opts.headers || {});
-    if (!headers['Content-Type'] && !headers['content-type'] && opts.body) {
+    const isFormData = typeof FormData !== 'undefined' && opts.body instanceof FormData;
+    if (!headers['Content-Type'] && !headers['content-type'] && opts.body && !isFormData) {
       headers['Content-Type'] = 'application/json';
     }
     const finalUrl = url && url.indexOf('http') === 0 ? url : ('http://localhost:3000' + (url || ''));

@@ -26,6 +26,36 @@
     }));
   }
 
+  async function listVisits(vm, clueId) {
+    return (global.ClueVisitsApi && typeof global.ClueVisitsApi.listVisits === 'function')
+      ? await global.ClueVisitsApi.listVisits(vm, clueId)
+      : await vm.apiCall('/api/visit/' + clueId);
+  }
+
+  async function clueImages(vm, clueId) {
+    return (global.ClueVisitsApi && typeof global.ClueVisitsApi.clueImages === 'function')
+      ? await global.ClueVisitsApi.clueImages(vm, clueId)
+      : await vm.apiCall('/api/clueImages?clueId=' + clueId);
+  }
+
+  async function updateVisit(vm, payload) {
+    return (global.ClueVisitsApi && typeof global.ClueVisitsApi.updateVisit === 'function')
+      ? await global.ClueVisitsApi.updateVisit(vm, payload)
+      : await vm.apiCall('/api/updateVisit', { method: 'POST', body: JSON.stringify(payload || {}) });
+  }
+
+  async function createVisit(vm, payload) {
+    return (global.ClueVisitsApi && typeof global.ClueVisitsApi.createVisit === 'function')
+      ? await global.ClueVisitsApi.createVisit(vm, payload)
+      : await vm.apiCall('/api/createVisit', { method: 'POST', body: JSON.stringify(payload || {}) });
+  }
+
+  async function associateImagesToVisit(vm, payload) {
+    return (global.ClueVisitsApi && typeof global.ClueVisitsApi.associateImagesToVisit === 'function')
+      ? await global.ClueVisitsApi.associateImagesToVisit(vm, payload)
+      : await vm.apiCall('/api/associateImagesToVisit', { method: 'POST', body: JSON.stringify(payload || {}) });
+  }
+
   async function saveDetailEdits(vm) {
     if (vm.detailSaving) return;
     if (!vm.currentDetail || !vm.currentDetail.id) {
@@ -122,7 +152,10 @@
       }
 
       if (Object.keys(updates).length > 0) {
-        var resp = await vm.apiCall('/api/updateMany', { method: 'POST', body: JSON.stringify({ id: vm.currentDetail.id, updates: updates }) });
+        var updatePayload = { id: vm.currentDetail.id, updates: updates };
+        var resp = (global.ClueCluesApi && typeof global.ClueCluesApi.updateClueMany === 'function')
+          ? await global.ClueCluesApi.updateClueMany(vm, updatePayload)
+          : await vm.apiCall('/api/updateMany', { method: 'POST', body: JSON.stringify(updatePayload) });
         if (!resp || resp.code !== 200) {
           vm.showMsg((resp && resp.msg) ? resp.msg : '保存失败（更新）', 'error');
           vm.isLoading = false;
@@ -132,15 +165,9 @@
 
       if (vm.revisitVisitContent && String(vm.revisitVisitContent).trim() !== '') {
         if (vm.revisitDraftId) {
-          if (global.ClueVisitsApi && typeof global.ClueVisitsApi.updateVisit === 'function') {
-            await global.ClueVisitsApi.updateVisit(vm, { id: vm.revisitDraftId, content: vm.revisitVisitContent });
-          } else {
-            await vm.apiCall('/api/updateVisit', { method: 'POST', body: JSON.stringify({ id: vm.revisitDraftId, content: vm.revisitVisitContent }) });
-          }
+          await updateVisit(vm, { id: vm.revisitDraftId, content: vm.revisitVisitContent });
         } else {
-          var created = (global.ClueVisitsApi && typeof global.ClueVisitsApi.createVisit === 'function')
-            ? await global.ClueVisitsApi.createVisit(vm, { id: vm.currentDetail.id, content: vm.revisitVisitContent })
-            : await vm.apiCall('/api/createVisit', { method: 'POST', body: JSON.stringify({ id: vm.currentDetail.id, content: vm.revisitVisitContent }) });
+          var created = await createVisit(vm, { id: vm.currentDetail.id, content: vm.revisitVisitContent });
 
           if (created && created.code === 200 && created.data && created.data.id) {
             var newVisitId = created.data.id;
@@ -148,11 +175,7 @@
             try {
               var imageKeys = (vm.uploadedImages || []).map(function (it) { return it.key; }).filter(Boolean);
               if (imageKeys.length > 0) {
-                if (global.ClueVisitsApi && typeof global.ClueVisitsApi.associateImagesToVisit === 'function') {
-                  await global.ClueVisitsApi.associateImagesToVisit(vm, { visitId: newVisitId, keys: imageKeys });
-                } else {
-                  await vm.apiCall('/api/associateImagesToVisit', { method: 'POST', body: JSON.stringify({ visitId: newVisitId, keys: imageKeys }) });
-                }
+                await associateImagesToVisit(vm, { visitId: newVisitId, keys: imageKeys });
               }
             } catch (e) {
               console.warn('associate images to visit failed', e);
@@ -161,9 +184,7 @@
         }
 
         try {
-          var d = (global.ClueVisitsApi && typeof global.ClueVisitsApi.listVisits === 'function')
-            ? await global.ClueVisitsApi.listVisits(vm, vm.currentDetail.id)
-            : await vm.apiCall('/api/visit/' + vm.currentDetail.id);
+          var d = await listVisits(vm, vm.currentDetail.id);
           if (d && d.code === 200) vm.currentVisit = d.data || [];
         } catch (_) {}
 
@@ -205,9 +226,7 @@
       vm.showDetail = true;
 
       if (item && item.id) {
-        var visits = (global.ClueVisitsApi && typeof global.ClueVisitsApi.listVisits === 'function')
-          ? await global.ClueVisitsApi.listVisits(vm, item.id)
-          : await vm.apiCall('/api/visit/' + item.id);
+        var visits = await listVisits(vm, item.id);
 
         if (visits && visits.code === 200) {
           var visitList = (visits.data || []).slice();
@@ -222,9 +241,7 @@
         }
 
         try {
-          var imgs = (global.ClueVisitsApi && typeof global.ClueVisitsApi.clueImages === 'function')
-            ? await global.ClueVisitsApi.clueImages(vm, item.id)
-            : await vm.apiCall('/api/clueImages?clueId=' + item.id);
+          var imgs = await clueImages(vm, item.id);
           if (imgs && imgs.code === 200) {
             setDetailImages(vm, imgs.data || []);
           } else {
@@ -245,9 +262,7 @@
 
           var tryFetchAndUpdate = async function () {
             try {
-              var imgs2 = (global.ClueVisitsApi && typeof global.ClueVisitsApi.clueImages === 'function')
-                ? await global.ClueVisitsApi.clueImages(vm, item.id)
-                : await vm.apiCall('/api/clueImages?clueId=' + item.id);
+              var imgs2 = await clueImages(vm, item.id);
               if (imgs2 && imgs2.code === 200) {
                 var curList = (vm.currentDetail && vm.currentDetail.images) ? vm.currentDetail.images : [];
                 var curSig = imagesSignature(curList);

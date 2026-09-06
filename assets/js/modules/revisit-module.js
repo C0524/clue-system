@@ -1,10 +1,44 @@
 (function (global) {
+  async function revisitList(vm) {
+    return (global.ClueVisitsApi && typeof global.ClueVisitsApi.revisitList === 'function')
+      ? await global.ClueVisitsApi.revisitList(vm)
+      : await vm.apiCall('/api/revisitList');
+  }
+
+  async function expertSchedule(vm, queryString) {
+    return (global.ClueVisitsApi && typeof global.ClueVisitsApi.expertSchedule === 'function')
+      ? await global.ClueVisitsApi.expertSchedule(vm, queryString)
+      : await vm.apiCall('/api/expertSchedule?' + (queryString || ''));
+  }
+
+  async function listVisits(vm, clueId) {
+    return (global.ClueVisitsApi && typeof global.ClueVisitsApi.listVisits === 'function')
+      ? await global.ClueVisitsApi.listVisits(vm, clueId)
+      : await vm.apiCall('/api/visit/' + clueId);
+  }
+
+  async function addVisit(vm, payload) {
+    return (global.ClueVisitsApi && typeof global.ClueVisitsApi.addVisit === 'function')
+      ? await global.ClueVisitsApi.addVisit(vm, payload)
+      : await vm.apiCall('/api/visit', { method: 'POST', body: JSON.stringify(payload || {}) });
+  }
+
+  async function updateVisit(vm, payload) {
+    return (global.ClueVisitsApi && typeof global.ClueVisitsApi.updateVisit === 'function')
+      ? await global.ClueVisitsApi.updateVisit(vm, payload)
+      : await vm.apiCall('/api/updateVisit', { method: 'POST', body: JSON.stringify(payload || {}) });
+  }
+
+  async function scheduleRevisit(vm, payload) {
+    return (global.ClueVisitsApi && typeof global.ClueVisitsApi.scheduleRevisit === 'function')
+      ? await global.ClueVisitsApi.scheduleRevisit(vm, payload)
+      : await vm.apiCall('/api/scheduleRevisit', { method: 'POST', body: JSON.stringify(payload || {}) });
+  }
+
   async function getRevisitList(vm) {
     try {
       vm.revisitLoading = true;
-      const d = (global.ClueVisitsApi && typeof global.ClueVisitsApi.revisitList === 'function')
-        ? await global.ClueVisitsApi.revisitList(vm)
-        : await vm.apiCall('/api/revisitList');
+      const d = await revisitList(vm);
       if (d && d.code === 200) {
         vm.revisitList = d.data || [];
         try {
@@ -43,9 +77,7 @@
       const parts = ['month=' + encodeURIComponent(m)];
       if (vm.expertScheduleSearch.doctor) parts.push('doctor=' + encodeURIComponent(vm.expertScheduleSearch.doctor));
       if (vm.expertScheduleSearch.bookUser) parts.push('bookUser=' + encodeURIComponent(vm.expertScheduleSearch.bookUser));
-      const d = (global.ClueVisitsApi && typeof global.ClueVisitsApi.expertSchedule === 'function')
-        ? await global.ClueVisitsApi.expertSchedule(vm, parts.join('&'))
-        : await vm.apiCall('/api/expertSchedule?' + parts.join('&'));
+      const d = await expertSchedule(vm, parts.join('&'));
       if (d && d.code === 200 && d.data) {
         const payload = d.data || {};
         vm.expertScheduleRows = Array.isArray(payload.doctors) ? payload.doctors : [];
@@ -123,9 +155,7 @@
         visitDate: f.visitDate,
         regFee: f.regFee,
       };
-      const res = (global.ClueVisitsApi && typeof global.ClueVisitsApi.scheduleRevisit === 'function')
-        ? await global.ClueVisitsApi.scheduleRevisit(vm, payload)
-        : await vm.apiCall('/api/scheduleRevisit', { method: 'POST', body: JSON.stringify(payload) });
+      const res = await scheduleRevisit(vm, payload);
       if (res && res.code === 200) {
         vm.showMsg('复诊已安排并保存');
         vm.closeScheduleRevisit();
@@ -148,9 +178,7 @@
     vm.revisitVisitList = [];
     vm.revisitVisitContext = ctx || '咨询';
     try {
-      const res = (global.ClueVisitsApi && typeof global.ClueVisitsApi.listVisits === 'function')
-        ? await global.ClueVisitsApi.listVisits(vm, item.id)
-        : await vm.apiCall('/api/visit/' + item.id);
+      const res = await listVisits(vm, item.id);
       if (res && res.code === 200) {
         let list = (res.data || []).slice();
         try {
@@ -192,13 +220,9 @@
         content: vm.revisitVisitContent,
         user: (vm.user && vm.user.username) || '',
       };
-      const res = (global.ClueVisitsApi && typeof global.ClueVisitsApi.addVisit === 'function')
-        ? await global.ClueVisitsApi.addVisit(vm, payload)
-        : await vm.apiCall('/api/visit', { method: 'POST', body: JSON.stringify(payload) });
+      const res = await addVisit(vm, payload);
       if (res && res.code === 200) {
-        const d = (global.ClueVisitsApi && typeof global.ClueVisitsApi.listVisits === 'function')
-          ? await global.ClueVisitsApi.listVisits(vm, vm.selectedRevisitItem.id)
-          : await vm.apiCall('/api/visit/' + vm.selectedRevisitItem.id);
+        const d = await listVisits(vm, vm.selectedRevisitItem.id);
         if (d && d.code === 200) vm.revisitVisitList = d.data || [];
         vm.revisitVisitContent = '';
         vm.showMsg('回访已添加');
@@ -220,13 +244,9 @@
     vm.isLoading = true;
     try {
       if (vm.revisitDraftId) {
-        const upd = (global.ClueVisitsApi && typeof global.ClueVisitsApi.updateVisit === 'function')
-          ? await global.ClueVisitsApi.updateVisit(vm, { id: vm.revisitDraftId, content: vm.revisitVisitContent })
-          : await vm.apiCall('/api/updateVisit', { method: 'POST', body: JSON.stringify({ id: vm.revisitDraftId, content: vm.revisitVisitContent }) });
+        const upd = await updateVisit(vm, { id: vm.revisitDraftId, content: vm.revisitVisitContent });
         if (upd && upd.code === 200) {
-          const d = (global.ClueVisitsApi && typeof global.ClueVisitsApi.listVisits === 'function')
-            ? await global.ClueVisitsApi.listVisits(vm, vm.currentDetail.id)
-            : await vm.apiCall('/api/visit/' + vm.currentDetail.id);
+          const d = await listVisits(vm, vm.currentDetail.id);
           if (d && d.code === 200) vm.currentVisit = d.data || [];
           await vm.fetchAndApplyCurrentDetail(vm.currentDetail.id);
           vm.revisitVisitContent = '';
@@ -240,13 +260,9 @@
           content: vm.revisitVisitContent,
           user: (vm.user && vm.user.username) || '',
         };
-        const res = (global.ClueVisitsApi && typeof global.ClueVisitsApi.addVisit === 'function')
-          ? await global.ClueVisitsApi.addVisit(vm, payload)
-          : await vm.apiCall('/api/visit', { method: 'POST', body: JSON.stringify(payload) });
+        const res = await addVisit(vm, payload);
         if (res && res.code === 200) {
-          const d = (global.ClueVisitsApi && typeof global.ClueVisitsApi.listVisits === 'function')
-            ? await global.ClueVisitsApi.listVisits(vm, vm.currentDetail.id)
-            : await vm.apiCall('/api/visit/' + vm.currentDetail.id);
+          const d = await listVisits(vm, vm.currentDetail.id);
           if (d && d.code === 200) vm.currentVisit = d.data || [];
           await vm.fetchAndApplyCurrentDetail(vm.currentDetail.id);
           vm.revisitVisitContent = '';

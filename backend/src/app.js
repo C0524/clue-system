@@ -1,3 +1,3 @@
-const legacyServer = require('../../server');
+const serverSingleton = require('./bootstrap/server-singleton');
 
-module.exports = legacyServer.app;
+module.exports = serverSingleton.app;

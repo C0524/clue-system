@@ -18,6 +18,8 @@
 <script src="assets/js/visits-api.js"></script>
 <script src="assets/js/import-api.js"></script>
 <script src="assets/js/stats-api.js"></script>
+<script src="assets/js/logs-api.js"></script>
+<script src="assets/js/system-api.js"></script>
 <script src="assets/js/modules/revisit-module.js"></script>
 <script src="assets/js/modules/clue-edit-module.js"></script>
 <script src="assets/js/modules/clue-detail-module.js"></script>
@@ -2327,9 +2329,9 @@ window.app = new Vue({
     // Setup server-version polling to detect backend restarts and trigger reload or partial refresh
     const checkServerVersionOnce = async () => {
       try{
-        // add cache-busting query and request cache:no-store to avoid 304 responses from browser/proxy cache
-        const url = '/api/server-version?_=' + Date.now();
-        const r = await this.apiCall(url, { cache: 'no-store' });
+        const r = (window.ClueSystemApi && typeof window.ClueSystemApi.serverVersion === 'function')
+          ? await window.ClueSystemApi.serverVersion(this)
+          : await this.apiCall('/api/server-version?_=' + Date.now(), { cache: 'no-store' });
         if(r && r.code === 200 && r.data && r.data.startedAt){
           if(this.serverVersion && this.serverVersion !== r.data.startedAt){
             try{ this.showMsg('检测到后端已更新，页面将刷新以保持同步'); }catch(e){}
@@ -2815,9 +2817,7 @@ window.app = new Vue({
           : await this.apiCall('/api/visit', { method: 'POST', body: JSON.stringify(payload) });
         if(res && res.code === 200){
           // 刷新回访列表
-          const d = (window.ClueVisitsApi && typeof window.ClueVisitsApi.listVisits === 'function')
-            ? await window.ClueVisitsApi.listVisits(this, this.selectedRow.id)
-            : await this.apiCall('/api/visit/' + this.selectedRow.id);
+          const d = await this.fetchVisitsByClueId(this.selectedRow.id);
           if(d && d.code === 200){
             this.currentVisit = d.data || [];
           }
@@ -3020,24 +3020,24 @@ window.app = new Vue({
       if(!q || q.status === 'uploading' || q.status === 'done') return;
       q.status = 'uploading';
       try{
-        const form = new FormData();
-        // 优先使用压缩后的 uploadFile（如存在），否则回退到原文件
-        form.append('image', q.uploadFile || q.file, q.file && q.file.name ? q.file.name : 'upload.jpg');
-        const token = this.user && this.user.auth ? this.user.auth : '';
-        // 如果当前正在查看某条已有线索，则把 clueId 作为 query param 传给后端以便立即关联图片
-        const base = (window.location.protocol === 'file:' ? 'http://localhost:3000' : (window.location.hostname === 'localhost' ? 'http://localhost:3000' : window.location.origin));
-        let uploadUrl = base + '/api/uploadImage' + (this.currentDetail && this.currentDetail.id ? ('?clueId=' + encodeURIComponent(this.currentDetail.id)) : '');
-        if(this.revisitDraftId){
-          uploadUrl += (uploadUrl.indexOf('?')===-1 ? '?' : '&') + 'visitId=' + encodeURIComponent(this.revisitDraftId);
-        }
-        const res = await fetch(uploadUrl, {
-          method: 'POST',
-          body: form,
-          headers: token ? { Authorization: 'Bearer ' + token } : {}
-        });
-        const text = await res.text();
+        const uploadPayload = {
+          file: q.uploadFile || q.file,
+          filename: q.file && q.file.name ? q.file.name : 'upload.jpg',
+          clueId: this.currentDetail && this.currentDetail.id ? this.currentDetail.id : null,
+          visitId: this.revisitDraftId || null,
+        };
         let data;
-        try{ data = JSON.parse(text); }catch(e){ throw new Error('服务器返回非 JSON'); }
+        if(window.ClueVisitsApi && typeof window.ClueVisitsApi.uploadImage === 'function'){
+          data = await window.ClueVisitsApi.uploadImage(this, uploadPayload);
+        }else{
+          const qp = [];
+          if(uploadPayload.clueId) qp.push('clueId=' + encodeURIComponent(uploadPayload.clueId));
+          if(uploadPayload.visitId) qp.push('visitId=' + encodeURIComponent(uploadPayload.visitId));
+          const uploadUrl = '/api/uploadImage' + (qp.length ? ('?' + qp.join('&')) : '');
+          const form = new FormData();
+          form.append('image', uploadPayload.file, uploadPayload.filename);
+          data = await this.apiCall(uploadUrl, { method: 'POST', body: form });
+        }
         if(data && data.code === 200 && data.data){
           q.status = 'done';
           const newItem = Object.assign({}, data.data, { filename: q.file.name });
@@ -3332,8 +3332,15 @@ window.app = new Vue({
         if(this.logEnd) q.push('endDate='+encodeURIComponent(this.logEnd));
         q.push('page='+encodeURIComponent(page));
         q.push('pageSize='+encodeURIComponent(this.logPageSize));
-        const url = '/api/logs' + (q.length?('?'+q.join('&')):'');
-        const d = await this.apiCall(url);
+        const d = (window.ClueLogsApi && typeof window.ClueLogsApi.getLogs === 'function')
+          ? await window.ClueLogsApi.getLogs(this, {
+              clueId: this.logClueId && this.logClueId.trim() ? this.logClueId.trim() : '',
+              startDate: this.logStart || '',
+              endDate: this.logEnd || '',
+              page: page,
+              pageSize: this.logPageSize,
+            })
+          : await this.apiCall('/api/logs' + (q.length ? ('?' + q.join('&')) : ''));
         if(d.code===200){
           // 兼容两种后端返回格式：
           // 1) 旧版： data 为数组 -> d.data (array)
@@ -3385,10 +3392,8 @@ window.app = new Vue({
         const wechatTrim = (this.form.wechat || '').toString().trim();
         if(phoneTrim || wechatTrim){
           // 请求后端返回所有匹配行以便前端判断（后端支持 body.all === true 返回数组）
-          const dupResp = await this.apiCall('/api/list', {
-            method: 'POST',
-            body: JSON.stringify({ phone: phoneTrim, wechat: wechatTrim, all: true })
-          });
+          const dupPayload = { phone: phoneTrim, wechat: wechatTrim, all: true };
+          const dupResp = await this.fetchClues(dupPayload);
           let matches = [];
           if(dupResp && dupResp.code === 200){
             if(Array.isArray(dupResp.data)) matches = dupResp.data;
@@ -3447,10 +3452,7 @@ window.app = new Vue({
       const payload = Object.assign({}, this.form, { createTime: new Date().toISOString(), images, forceInsert: allowForce, parentClueId: linkedParentClueId || null });
       // 强制使用当前登录账号作为套电人员（前端保证）
       try{ payload.taoRen = (this.user && this.user.username) || payload.taoRen || ''; }catch(e){}
-      const data=await this.apiCall("/api/save",{
-        method:"POST",
-        body:JSON.stringify(payload)
-      });
+      const data = await this.saveClue(payload);
       this.isLoading=false;
       // 后端可能返回 409 duplicate：仅在“过期单”场景允许强制录入
       if(data && data.code === 409 && data.msg && data.msg.indexOf('duplicate') === 0){
@@ -3482,7 +3484,7 @@ window.app = new Vue({
 
           payload.forceInsert = true;
           this.isLoading = true;
-          const forced = await this.apiCall("/api/save",{ method:"POST", body:JSON.stringify(payload) });
+          const forced = await this.saveClue(payload);
           this.isLoading = false;
           if(forced && forced.code === 200){
             this.showMsg('提交成功');
@@ -3654,7 +3656,7 @@ window.app = new Vue({
 
       this.isLoading = true;
       try{
-        const resp = await this.apiCall('/api/updateMany', { method: 'POST', body: JSON.stringify({ id: this.currentDetail.id, updates }) });
+        const resp = await this.updateClueMany({ id: this.currentDetail.id, updates });
         if(!resp || resp.code !== 200){
           this.showMsg((resp && resp.msg) ? resp.msg : '保存失败（退费）','error');
           return;
@@ -3768,7 +3770,7 @@ window.app = new Vue({
           }catch(e){ console.warn('collect update field failed', k, e); }
         }
         if(Object.keys(updates).length > 0){
-          const resp = await this.apiCall('/api/updateMany', { method: 'POST', body: JSON.stringify({ id: this.currentDetail.id, updates }) });
+          const resp = await this.updateClueMany({ id: this.currentDetail.id, updates });
           if(!resp || resp.code !== 200){
             this.showMsg((resp && resp.msg) ? resp.msg : '保存失败（更新）','error');
             this.isLoading = false;
@@ -3806,9 +3808,7 @@ window.app = new Vue({
           }
           // 刷新回访列表
           try{
-            const d = (window.ClueVisitsApi && typeof window.ClueVisitsApi.listVisits === 'function')
-              ? await window.ClueVisitsApi.listVisits(this, this.currentDetail.id)
-              : await this.apiCall('/api/visit/' + this.currentDetail.id);
+            const d = await this.fetchVisitsByClueId(this.currentDetail.id);
             if(d && d.code===200) this.currentVisit = d.data || [];
           }catch(e){}
           this.revisitVisitContent = '';
@@ -3853,12 +3853,7 @@ window.app = new Vue({
       const p = page || this.currentPage || 1;
       payload.page = p;
       payload.pageSize = this.pageSize || 10;
-      const d = (window.ClueCluesApi && typeof window.ClueCluesApi.list === 'function')
-        ? await window.ClueCluesApi.list(this, payload)
-        : await this.apiCall('/api/list', {
-            method: 'POST',
-            body: JSON.stringify(payload)
-          });
+      const d = await this.fetchClues(payload);
       if(d.code === 200){
         // server returns { rows, total, page, pageSize } when paged
         if(d.data && d.data.rows){
@@ -3881,9 +3876,7 @@ window.app = new Vue({
         try{ this.getUnvisitedCounts(); }catch(e){}
         // 同步过期单统计数字
         try{
-          const ec = (window.ClueCluesApi && typeof window.ClueCluesApi.expiredCount === 'function')
-            ? await window.ClueCluesApi.expiredCount(this)
-            : await this.apiCall('/api/expiredCount');
+          const ec = await this.fetchExpiredCount();
           if(ec && ec.code === 200 && ec.data){ this.expiredCount = Number(ec.data.count) || 0; }
         }catch(e){ console.warn('get expiredCount failed', e); }
       }
@@ -3898,12 +3891,7 @@ window.app = new Vue({
       const p = page || this.publicPoolCurrentPage || 1;
       payload.page = p;
       payload.pageSize = this.publicPoolPageSize || 20;
-      const d = (window.ClueCluesApi && typeof window.ClueCluesApi.publicPoolList === 'function')
-        ? await window.ClueCluesApi.publicPoolList(this, payload)
-        : await this.apiCall('/api/publicPoolList', {
-            method: 'POST',
-            body: JSON.stringify(payload)
-          });
+      const d = await this.fetchAssignableRows(payload, 'publicPool');
       if(d && d.code === 200){
         if(d.data && d.data.rows){
           this.publicPoolList = d.data.rows || [];
@@ -3948,9 +3936,7 @@ window.app = new Vue({
       if(this.search && this.search.bookUser){ parts.push('bookUser=' + encodeURIComponent(this.search.bookUser)); }
       // quickFilter 在预约记录页使用前端叠加过滤，确保与创建日期筛选按“先筛选再过滤”顺序生效
       const q = parts.length ? ('?' + parts.join('&')) : '';
-      const d = (window.ClueCluesApi && typeof window.ClueCluesApi.bookList === 'function')
-        ? await window.ClueCluesApi.bookList(this, q)
-        : await this.apiCall('/api/bookList' + q);
+      const d = await this.fetchBookList(q);
       if(d.code===200){
         // 按到诊时间排序展示：优先使用 visitDate，回退到 createTime
         const toTs = (it)=>{
@@ -4078,7 +4064,7 @@ window.app = new Vue({
         if(key==='show'){
           this.currentDetail=item;
           this.showDetail=true;
-          const d=await this.apiCall("/api/visit/"+id);
+          const d = await this.fetchVisitsByClueId(id);
           if(d.code===200)this.currentVisit=d.data;
           return;
         }
@@ -4089,10 +4075,7 @@ window.app = new Vue({
         if(key === 'medicineDay'){
           this.showMsg('正在更新开药天数...', 'info');
         }
-        const data=await this.apiCall("/api/update",{
-          method:"POST",
-          body:JSON.stringify({id,key,val})
-        });
+        const data = await this.updateClueField({ id, key, val });
         if(!data || data.code!==200){
           console.warn('updateInfo: update failed', { id, key, val, resp: data });
           this.showMsg((data && data.msg) ? data.msg : '更新失败','error');
@@ -4138,9 +4121,7 @@ window.app = new Vue({
         this.showDetail = true;
         // 拉取回访记录
         if(item && item.id){
-          const d = (window.ClueVisitsApi && typeof window.ClueVisitsApi.listVisits === 'function')
-            ? await window.ClueVisitsApi.listVisits(this, item.id)
-            : await this.apiCall('/api/visit/' + item.id);
+          const d = await this.fetchVisitsByClueId(item.id);
           if(d && d.code === 200){
             // sort visits ascending by time (oldest first)
             const list = (d.data || []).slice();
@@ -4151,9 +4132,7 @@ window.app = new Vue({
           }
           // 拉取图片
           try{
-            const imgs = (window.ClueVisitsApi && typeof window.ClueVisitsApi.clueImages === 'function')
-              ? await window.ClueVisitsApi.clueImages(this, item.id)
-              : await this.apiCall('/api/clueImages?clueId=' + item.id);
+            const imgs = await this.fetchClueImagesByClueId(item.id);
             if(imgs && imgs.code === 200){
               // attach to currentDetail (use Vue.set / this.$set to ensure reactivity in Vue2)
               const imgsList = imgs.data || [];
@@ -4183,9 +4162,7 @@ window.app = new Vue({
 
             const tryFetchAndUpdate = async () => {
               try{
-                const imgs2 = (window.ClueVisitsApi && typeof window.ClueVisitsApi.clueImages === 'function')
-                  ? await window.ClueVisitsApi.clueImages(this, item.id)
-                  : await this.apiCall('/api/clueImages?clueId=' + item.id);
+                const imgs2 = await this.fetchClueImagesByClueId(item.id);
                 if(imgs2 && imgs2.code === 200){
                   const curList = (this.currentDetail && this.currentDetail.images) ? this.currentDetail.images : [];
                   const curSig = _imagesSignature(curList);
@@ -4288,10 +4265,13 @@ window.app = new Vue({
     async openVisit(id){
       const content=prompt('请输入回访内容');
       if(!content)return;
-      const data=await this.apiCall("/api/visit",{
-        method:"POST",
-        body:JSON.stringify({id,content,user:this.user.username})
-      });
+      const payload = { id, content, user: this.user.username };
+      const data = (window.ClueVisitsApi && typeof window.ClueVisitsApi.addVisit === 'function')
+        ? await window.ClueVisitsApi.addVisit(this, payload)
+        : await this.apiCall("/api/visit",{
+            method:"POST",
+            body:JSON.stringify(payload)
+          });
       if(data.code===200){
         this.showMsg('回访记录添加成功');
         // 添加回访后仅刷新该条记录并详情回访列表，保持行位置不变
@@ -4300,7 +4280,7 @@ window.app = new Vue({
           if(updated){ this.applyFetchedToLocal(updated); this.flashRow(updated.id); }
         }catch(e){ console.warn('fetch single clue after openVisit failed', e); }
         if(this.showDetail){
-          const d=await this.apiCall("/api/visit/"+id);
+          const d = await this.fetchVisitsByClueId(id);
           if(d.code===200)this.currentVisit=d.data;
         }
         await this.refreshCurrentTabAfterSave();
@@ -4311,10 +4291,7 @@ window.app = new Vue({
 
     async delClue(id){
       if(!confirm('确定删除这条线索吗？'))return;
-      const data=await this.apiCall("/api/del",{
-        method:"POST",
-        body:JSON.stringify({id})
-      });
+      const data = await this.deleteClueById(id);
       if(data.code===200){
         this.showMsg('线索删除成功');
         this.getList();
@@ -4361,9 +4338,7 @@ window.app = new Vue({
           return;
         }
       }catch(e){}
-      const d = (window.ClueUsersApi && typeof window.ClueUsersApi.listUsers === 'function')
-        ? await window.ClueUsersApi.listUsers(this)
-        : await this.apiCall('/api/users');
+      const d = await this.fetchUsers();
       if(d && d.code===200){
         this.userList = d.data || [];
         // populate consultList so appointment-person dropdown can show options
@@ -4427,7 +4402,7 @@ window.app = new Vue({
       this.assignLoading = true;
       try{
         // 直接调用 API 获取所有用户，仅在本弹窗中过滤咨询账号，不依赖 getUsers() 的副作用
-        const usersResp = await this.apiCall('/api/users');
+        const usersResp = await this.fetchUsers();
         if(usersResp && usersResp.code === 200 && Array.isArray(usersResp.data)){
           const allUsers = usersResp.data;
           // 分配下拉：保留咨询账号，并额外加入主管账号
@@ -4451,7 +4426,7 @@ window.app = new Vue({
         try{
           // avoid blocking UI if backend is slow: race request with a timeout
           const raceRes = await Promise.race([
-            this.apiCall(this.assignSource === 'publicPool' ? '/api/publicPoolList' : '/api/list', { method: 'POST', body: JSON.stringify(payload) }),
+            this.fetchAssignableRows(payload, this.assignSource),
             new Promise((resolve) => setTimeout(() => resolve({ timeout: true }), 3000))
           ]);
           if(raceRes && raceRes.timeout){
@@ -4509,7 +4484,7 @@ window.app = new Vue({
           body.filter.all = true;
         }
         this.assignLoading = true;
-        const res = await this.apiCall('/api/assignClues', { method: 'POST', body: JSON.stringify(body) });
+        const res = await this.assignClues(body);
         this.assignLoading = false;
         if(res && res.code === 200){
           const msg = `分配完成：已分配 ${res.data && res.data.assigned?res.data.assigned:0} 条，跳过 ${res.data && res.data.skipped?res.data.skipped:0} 条`;
@@ -4562,10 +4537,7 @@ window.app = new Vue({
         return window.ClueSettingsModule.addUser(this);
       }
       if(!this.newUser||!this.newPwd){this.showMsg('请输入用户名和密码','error');return;}
-      const data=await this.apiCall("/api/addUser",{
-        method:"POST",
-        body:JSON.stringify({username:this.newUser,password:this.newPwd,role:this.newRole})
-      });
+      const data = await this.createUser({ username: this.newUser, password: this.newPwd, role: this.newRole });
       if(data.code===200){
         this.showMsg('用户添加成功');
         this.newUser="";this.newPwd="";this.newRole="咨询";
@@ -4577,10 +4549,7 @@ window.app = new Vue({
         return window.ClueSettingsModule.delUser(this, username);
       }
       if(!confirm('确定删除用户 '+username+' 吗？'))return;
-      const data=await this.apiCall("/api/delUser",{
-        method:"POST",
-        body:JSON.stringify({username})
-      });
+      const data = await this.removeUser({ username });
       if(data.code===200){
         this.showMsg('用户删除成功');
         this.getUsers();
@@ -4594,9 +4563,7 @@ window.app = new Vue({
         const np = prompt('请输入 ' + username + ' 的新密码：');
         if(!np) return;
         this.isLoading = true;
-        const res = (window.ClueUsersApi && typeof window.ClueUsersApi.changeUserPassword === 'function')
-          ? await window.ClueUsersApi.changeUserPassword(this, { username, newPassword: np })
-          : await this.apiCall('/api/changeUserPassword', { method: 'POST', body: JSON.stringify({ username, newPassword: np }) });
+        const res = await this.resetUserPassword({ username, newPassword: np });
         this.isLoading = false;
         if(res && res.code === 200){
           this.showMsg('密码修改成功');
@@ -4616,9 +4583,7 @@ window.app = new Vue({
         role = (role+'').trim();
         if(allowed.indexOf(role) === -1){ this.showMsg('非法角色','error'); return; }
         this.isLoading = true;
-        const res = (window.ClueUsersApi && typeof window.ClueUsersApi.updateUserRole === 'function')
-          ? await window.ClueUsersApi.updateUserRole(this, { username, role })
-          : await this.apiCall('/api/updateUserRole', { method: 'POST', body: JSON.stringify({ username, role }) });
+        const res = await this.setUserRole({ username, role });
         this.isLoading = false;
         if(res && res.code === 200){ this.showMsg('角色修改成功'); this.getUsers(); }
         else{ this.showMsg((res && res.msg) ? res.msg : '修改失败','error'); }
@@ -4628,7 +4593,7 @@ window.app = new Vue({
       if(window.ClueSettingsModule && typeof window.ClueSettingsModule.getDoctors === 'function'){
         return window.ClueSettingsModule.getDoctors(this);
       }
-      const d=await this.apiCall("/api/doctors");
+      const d = await this.fetchDoctors();
       if(d.code===200)this.doctorList=d.data;
     },
     async addDoctor(){
@@ -4637,10 +4602,7 @@ window.app = new Vue({
       }
       if(!this.newDoc.name||!this.newDoc.dept){this.showMsg('请输入医生姓名和科室','error');return;}
       const payload = { name: this.newDoc.name, dept: this.newDoc.dept, operator: this.newDoc.operator };
-      const data=await this.apiCall("/api/addDoctor",{
-        method:"POST",
-        body:JSON.stringify(payload)
-      });
+      const data = await this.createDoctor(payload);
       if(data.code===200){
         this.showMsg('医生添加成功');
         this.newDoc={name:"",dept:"",operator:""};
@@ -4660,7 +4622,7 @@ window.app = new Vue({
       if(!this.editingDoctor || !this.editingDoctor.name) return;
       try{
         // 使用相对路径让请求走当前页面的同源代理/隧道，避免浏览器针对 loopback 的 Private Network 拦截
-        const res = await this.apiCall('/api/updateDoctor',{ method: 'POST', body: JSON.stringify({ name: this.editingDoctor.name, dept: this.editingDoctor.dept, operator: this.editingDoctor.operator }) });
+        const res = await this.saveDoctor({ name: this.editingDoctor.name, dept: this.editingDoctor.dept, operator: this.editingDoctor.operator });
         if(res && res.code === 200){ this.showMsg('医生信息更新成功'); this.editingDoctor = null; this.getDoctors(); }
         else { this.showMsg('更新失败','error'); }
       }catch(e){ console.error('更新医生失败', e); this.showMsg('更新失败','error'); }
@@ -4676,10 +4638,7 @@ window.app = new Vue({
         return window.ClueSettingsModule.delDoctor(this, name);
       }
       if(!confirm('确定删除医生 '+name+' 吗？'))return;
-      const data=await this.apiCall("/api/delDoctor",{
-        method:"POST",
-        body:JSON.stringify({name})
-      });
+      const data = await this.removeDoctor({ name });
       if(data.code===200){
         this.showMsg('医生删除成功');
         this.getDoctors();
@@ -4688,7 +4647,7 @@ window.app = new Vue({
     // 话单筛选：套电人员选项（来自已录入线索的 taoRen 去重）
     async getTaoRen(){
       try{
-        const d = await this.apiCall('/api/listTaoRenOptions');
+        const d = await this.fetchTaoRenOptions();
         if(d && d.code === 200){
           const names = (d.data || []).map(it => (it && it.name ? String(it.name).trim() : '')).filter(Boolean);
           const uniq = Array.from(new Set(names));
@@ -4706,12 +4665,18 @@ window.app = new Vue({
     },
     async getStatAll(){
       const month = this.selectedMonth || '';
-      let url = month ? `/api/statAll?month=${encodeURIComponent(month)}` : '/api/statAll';
-      // 若管理员开启了临时开关，传递参数给后端。后端会校验权限并仅在允许时应用该口径。
-      if(this.statExcludeAdminImported){
-        url += (url.indexOf('?') === -1 ? '?' : '&') + 'excludeAdminImported=1';
-      }
-      const d=await this.apiCall(url);
+      const statOptions = {
+        month,
+        excludeAdminImported: !!this.statExcludeAdminImported
+      };
+      const url = month ? `/api/statAll?month=${encodeURIComponent(month)}` : '/api/statAll';
+      const d = (window.ClueStatsApi && typeof window.ClueStatsApi.statAll === 'function')
+        ? await window.ClueStatsApi.statAll(this, statOptions)
+        : await this.apiCall(
+            this.statExcludeAdminImported
+              ? (url + (url.indexOf('?') === -1 ? '?' : '&') + 'excludeAdminImported=1')
+              : url
+          );
       if(d.code===200){
         // enrich doctorStat: 保持预约相关列使用 docStat（recTime 口径），但线索统计相关列统一使用 monthGoalStat（createTime 口径）
         const rawDoc = d.data.docStat || [];
@@ -5309,12 +5274,136 @@ window.app = new Vue({
     // 从后端获取单条线索（按 id）并返回该对象或 null
     async fetchClueById(id){
       try{
-        const d = await this.apiCall('/api/list', { method: 'POST', body: JSON.stringify({ id }) });
+        const d = await this.fetchClues({ id });
         if(d && d.code === 200){
           if(Array.isArray(d.data) && d.data.length>0) return d.data[0];
         }
       }catch(e){ console.error('fetchClueById error', e); }
       return null;
+    },
+    async fetchVisitsByClueId(clueId){
+      return (window.ClueVisitsApi && typeof window.ClueVisitsApi.listVisits === 'function')
+        ? await window.ClueVisitsApi.listVisits(this, clueId)
+        : await this.apiCall('/api/visit/' + clueId);
+    },
+    async fetchClueImagesByClueId(clueId){
+      return (window.ClueVisitsApi && typeof window.ClueVisitsApi.clueImages === 'function')
+        ? await window.ClueVisitsApi.clueImages(this, clueId)
+        : await this.apiCall('/api/clueImages?clueId=' + clueId);
+    },
+    async fetchUsers(){
+      return (window.ClueUsersApi && typeof window.ClueUsersApi.listUsers === 'function')
+        ? await window.ClueUsersApi.listUsers(this)
+        : await this.apiCall('/api/users');
+    },
+    async fetchDoctors(){
+      return (window.ClueDoctorsApi && typeof window.ClueDoctorsApi.listDoctors === 'function')
+        ? await window.ClueDoctorsApi.listDoctors(this)
+        : await this.apiCall('/api/doctors');
+    },
+    async createUser(payload){
+      return (window.ClueUsersApi && typeof window.ClueUsersApi.addUser === 'function')
+        ? await window.ClueUsersApi.addUser(this, payload)
+        : await this.apiCall('/api/addUser', { method:'POST', body: JSON.stringify(payload || {}) });
+    },
+    async removeUser(payload){
+      return (window.ClueUsersApi && typeof window.ClueUsersApi.delUser === 'function')
+        ? await window.ClueUsersApi.delUser(this, payload)
+        : await this.apiCall('/api/delUser', { method:'POST', body: JSON.stringify(payload || {}) });
+    },
+    async resetUserPassword(payload){
+      return (window.ClueUsersApi && typeof window.ClueUsersApi.changeUserPassword === 'function')
+        ? await window.ClueUsersApi.changeUserPassword(this, payload)
+        : await this.apiCall('/api/changeUserPassword', { method: 'POST', body: JSON.stringify(payload || {}) });
+    },
+    async setUserRole(payload){
+      return (window.ClueUsersApi && typeof window.ClueUsersApi.updateUserRole === 'function')
+        ? await window.ClueUsersApi.updateUserRole(this, payload)
+        : await this.apiCall('/api/updateUserRole', { method: 'POST', body: JSON.stringify(payload || {}) });
+    },
+    async createDoctor(payload){
+      return (window.ClueDoctorsApi && typeof window.ClueDoctorsApi.addDoctor === 'function')
+        ? await window.ClueDoctorsApi.addDoctor(this, payload)
+        : await this.apiCall('/api/addDoctor', { method:'POST', body: JSON.stringify(payload || {}) });
+    },
+    async saveDoctor(payload){
+      return (window.ClueDoctorsApi && typeof window.ClueDoctorsApi.updateDoctor === 'function')
+        ? await window.ClueDoctorsApi.updateDoctor(this, payload)
+        : await this.apiCall('/api/updateDoctor', { method: 'POST', body: JSON.stringify(payload || {}) });
+    },
+    async removeDoctor(payload){
+      return (window.ClueDoctorsApi && typeof window.ClueDoctorsApi.delDoctor === 'function')
+        ? await window.ClueDoctorsApi.delDoctor(this, payload)
+        : await this.apiCall('/api/delDoctor', { method:'POST', body: JSON.stringify(payload || {}) });
+    },
+    async fetchAssignableRows(payload, source){
+      if(source === 'publicPool'){
+        return (window.ClueCluesApi && typeof window.ClueCluesApi.publicPoolList === 'function')
+          ? await window.ClueCluesApi.publicPoolList(this, payload)
+          : await this.apiCall('/api/publicPoolList', { method: 'POST', body: JSON.stringify(payload || {}) });
+      }
+      return (window.ClueCluesApi && typeof window.ClueCluesApi.list === 'function')
+        ? await window.ClueCluesApi.list(this, payload)
+        : await this.apiCall('/api/list', { method: 'POST', body: JSON.stringify(payload || {}) });
+    },
+    async assignClues(payload){
+      return (window.ClueCluesApi && typeof window.ClueCluesApi.assignClues === 'function')
+        ? await window.ClueCluesApi.assignClues(this, payload)
+        : await this.apiCall('/api/assignClues', { method: 'POST', body: JSON.stringify(payload || {}) });
+    },
+    async fetchClues(payload){
+      return (window.ClueCluesApi && typeof window.ClueCluesApi.list === 'function')
+        ? await window.ClueCluesApi.list(this, payload)
+        : await this.apiCall('/api/list', { method: 'POST', body: JSON.stringify(payload || {}) });
+    },
+    async saveClue(payload){
+      return (window.ClueCluesApi && typeof window.ClueCluesApi.saveClue === 'function')
+        ? await window.ClueCluesApi.saveClue(this, payload)
+        : await this.apiCall('/api/save', { method:'POST', body: JSON.stringify(payload || {}) });
+    },
+    async updateClueField(payload){
+      return (window.ClueCluesApi && typeof window.ClueCluesApi.updateClueField === 'function')
+        ? await window.ClueCluesApi.updateClueField(this, payload)
+        : await this.apiCall('/api/update', { method:'POST', body: JSON.stringify(payload || {}) });
+    },
+    async updateClueMany(payload){
+      return (window.ClueCluesApi && typeof window.ClueCluesApi.updateClueMany === 'function')
+        ? await window.ClueCluesApi.updateClueMany(this, payload)
+        : await this.apiCall('/api/updateMany', { method:'POST', body: JSON.stringify(payload || {}) });
+    },
+    async deleteClueById(id){
+      return (window.ClueCluesApi && typeof window.ClueCluesApi.deleteClue === 'function')
+        ? await window.ClueCluesApi.deleteClue(this, id)
+        : await this.apiCall('/api/del', { method:'POST', body: JSON.stringify({ id }) });
+    },
+    async fetchExpiredCount(){
+      return (window.ClueCluesApi && typeof window.ClueCluesApi.expiredCount === 'function')
+        ? await window.ClueCluesApi.expiredCount(this)
+        : await this.apiCall('/api/expiredCount');
+    },
+    async fetchBookList(queryString){
+      const q = queryString || '';
+      return (window.ClueCluesApi && typeof window.ClueCluesApi.bookList === 'function')
+        ? await window.ClueCluesApi.bookList(this, q)
+        : await this.apiCall('/api/bookList' + q);
+    },
+    async fetchTaoRenOptions(){
+      return (window.ClueCluesApi && typeof window.ClueCluesApi.listTaoRenOptions === 'function')
+        ? await window.ClueCluesApi.listTaoRenOptions(this)
+        : await this.apiCall('/api/listTaoRenOptions');
+    },
+    async exportClues(payloadOrIds){
+      return (window.ClueCluesApi && typeof window.ClueCluesApi.exportClues === 'function')
+        ? await window.ClueCluesApi.exportClues(this, payloadOrIds)
+        : await this.apiCall('/api/exportClues', {
+            method:'POST',
+            body: JSON.stringify(Array.isArray(payloadOrIds) ? { ids: payloadOrIds } : (payloadOrIds || {}))
+          });
+    },
+    async exportByVisitDateReq(date){
+      return (window.ClueCluesApi && typeof window.ClueCluesApi.exportByVisitDate === 'function')
+        ? await window.ClueCluesApi.exportByVisitDate(this, date)
+        : null;
     },
     // 将后端返回的单条记录原地应用到当前显示的列表中（不改变顺序），用于保存后保持行位置
     applyFetchedToLocal(item){
@@ -5652,12 +5741,7 @@ window.app = new Vue({
         payload.page = 1;
         payload.pageSize = Math.max(Number(this.totalCount) || 0, 1);
 
-        const listResp = (window.ClueCluesApi && typeof window.ClueCluesApi.list === 'function')
-          ? await window.ClueCluesApi.list(this, payload)
-          : await this.apiCall('/api/list', {
-              method: 'POST',
-              body: JSON.stringify(payload)
-            });
+        const listResp = await this.fetchClues(payload);
         if(!listResp || listResp.code !== 200){
           this.showMsg('导出失败：读取筛选结果失败','error');
           return;
@@ -5670,12 +5754,7 @@ window.app = new Vue({
         }
 
         const ids = listRows.map(r => r && r.id).filter(Boolean);
-        const exportResp = (window.ClueCluesApi && typeof window.ClueCluesApi.exportClues === 'function')
-          ? await window.ClueCluesApi.exportClues(this, ids)
-          : await this.apiCall('/api/exportClues', {
-              method: 'POST',
-              body: JSON.stringify({ ids })
-            });
+        const exportResp = await this.exportClues(ids);
         if(!exportResp || exportResp.code !== 200){
           this.showMsg('导出失败：读取回访记录失败','error');
           return;
@@ -6046,18 +6125,27 @@ window.app = new Vue({
       const date = this.exportVisitDate;
       this.isExporting = true;
       try{
-        const token = this.getAuth();
-        const isRemote = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && window.location.hostname !== '::1' && window.location.protocol !== 'file:';
-        let baseUrl;
-        if (window.location.protocol === 'file:' || window.location.protocol === 'null') baseUrl = 'http://localhost:3000';
-        else if (isRemote) baseUrl = window.location.origin;
-        else baseUrl = 'http://localhost:3000';
-        const url = `${baseUrl}/api/exportByVisitDate?date=${encodeURIComponent(date)}`;
-        const headers = token ? { Authorization: 'Bearer ' + token } : {};
-        const resp = await fetch(url, { method: 'GET', headers, mode: 'cors', targetAddressSpace: 'local' });
-        if(!resp.ok){ this.showMsg('导出失败：服务器返回错误','error'); this.isExporting = false; return; }
-        const blob = await resp.blob();
-        const filename = `到诊_${date}.xlsx`;
+        const result = await this.exportByVisitDateReq(date);
+
+        let blob = null;
+        let filename = `到诊_${date}.xlsx`;
+        if(result && result.code === 200 && result.data && result.data.blob){
+          blob = result.data.blob;
+          filename = result.data.filename || filename;
+        }else{
+          const token = this.getAuth();
+          const isRemote = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && window.location.hostname !== '::1' && window.location.protocol !== 'file:';
+          let baseUrl;
+          if (window.location.protocol === 'file:' || window.location.protocol === 'null') baseUrl = 'http://localhost:3000';
+          else if (isRemote) baseUrl = window.location.origin;
+          else baseUrl = 'http://localhost:3000';
+          const url = `${baseUrl}/api/exportByVisitDate?date=${encodeURIComponent(date)}`;
+          const headers = token ? { Authorization: 'Bearer ' + token } : {};
+          const resp = await fetch(url, { method: 'GET', headers, mode: 'cors', targetAddressSpace: 'local' });
+          if(!resp.ok){ this.showMsg('导出失败：服务器返回错误','error'); this.isExporting = false; return; }
+          blob = await resp.blob();
+        }
+
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = filename;
@@ -6070,10 +6158,12 @@ window.app = new Vue({
     },
     async exportData(){
       try{
-        const data = await this.apiCall("/api/exportClues", {
-          method: "POST",
-          body: JSON.stringify({ startDate: this.exportStartDate, endDate: this.exportEndDate, doctor: this.exportDoctor })
-        });
+        const exportPayload = {
+          startDate: this.exportStartDate,
+          endDate: this.exportEndDate,
+          doctor: this.exportDoctor
+        };
+        const data = await this.exportClues(exportPayload);
 
         if(data.code === 200){
           // 后端返回 { clues: [...], visits: [...] }
@@ -6181,15 +6271,24 @@ window.app = new Vue({
         if(!this.currentDetail || !this.currentDetail.id){ this.showMsg('请先打开详情再上传','error'); return; }
         const file = files[0];
         this.revisitUploading = true;
-        const form = new FormData();
-        form.append('image', file, file.name || 'upload.jpg');
-        const token = this.getAuth();
-        const base = (window.location.protocol === 'file:' ? 'http://localhost:3000' : (window.location.hostname === 'localhost' ? 'http://localhost:3000' : window.location.origin));
-        const url = `${base}/api/uploadImage?clueId=${encodeURIComponent(this.currentDetail.id)}`;
-        const res = await fetch(url, { method: 'POST', body: form, headers: token ? { Authorization: 'Bearer ' + token } : {} , mode: 'cors', targetAddressSpace: 'local' });
-        const text = await res.text();
-        let data;
-        try{ data = JSON.parse(text); }catch(err){ throw new Error('服务器返回非 JSON'); }
+        const uploadPayload = {
+          file,
+          filename: file.name || 'upload.jpg',
+          clueId: this.currentDetail.id,
+        };
+        let data = null;
+        if(window.ClueVisitsApi && typeof window.ClueVisitsApi.uploadImage === 'function'){
+          data = await window.ClueVisitsApi.uploadImage(this, uploadPayload);
+        }else{
+          const form = new FormData();
+          form.append('image', file, file.name || 'upload.jpg');
+          const token = this.getAuth();
+          const base = (window.location.protocol === 'file:' ? 'http://localhost:3000' : (window.location.hostname === 'localhost' ? 'http://localhost:3000' : window.location.origin));
+          const url = `${base}/api/uploadImage?clueId=${encodeURIComponent(this.currentDetail.id)}`;
+          const res = await fetch(url, { method: 'POST', body: form, headers: token ? { Authorization: 'Bearer ' + token } : {} , mode: 'cors', targetAddressSpace: 'local' });
+          const text = await res.text();
+          try{ data = JSON.parse(text); }catch(err){ throw new Error('服务器返回非 JSON'); }
+        }
         if(data && data.code === 200 && data.data){
           // append to currentDetail.images for immediate visibility
           this.currentDetail.images = this.currentDetail.images || [];

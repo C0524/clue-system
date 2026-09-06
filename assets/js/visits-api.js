@@ -71,6 +71,23 @@
     });
   }
 
+  async function uploadImage(vm, payload) {
+    if (!ensureHttp()) return { code: 500, msg: 'HTTP client not ready' };
+    const data = payload || {};
+    const form = new FormData();
+    form.append('image', data.file, data.filename || 'upload.jpg');
+
+    const query = [];
+    if (data.clueId) query.push('clueId=' + encodeURIComponent(data.clueId));
+    if (data.visitId) query.push('visitId=' + encodeURIComponent(data.visitId));
+    const url = '/api/uploadImage' + (query.length ? ('?' + query.join('&')) : '');
+
+    return global.ClueHttpClient.request(vm, url, {
+      method: 'POST',
+      body: form,
+    });
+  }
+
   global.ClueVisitsApi = {
     revisitList: revisitList,
     expertSchedule: expertSchedule,
@@ -82,5 +99,6 @@
     deleteImage: deleteImage,
     clueImages: clueImages,
     associateImagesToVisit: associateImagesToVisit,
+    uploadImage: uploadImage,
   };
 })(window);

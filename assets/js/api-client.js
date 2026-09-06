@@ -57,7 +57,8 @@
         ...(opts.headers || {}),
         ...(token ? { Authorization: 'Bearer ' + token } : {}),
       };
-      if (opts.body && !headers['Content-Type'] && !headers['content-type']) {
+      const isFormData = typeof FormData !== 'undefined' && opts.body instanceof FormData;
+      if (opts.body && !isFormData && !headers['Content-Type'] && !headers['content-type']) {
         headers['Content-Type'] = 'application/json';
       }
 

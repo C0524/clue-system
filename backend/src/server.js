@@ -1,3 +1,6 @@
-const legacyServer = require('../../server');
+const serverSingleton = require('./bootstrap/server-singleton');
 
-legacyServer.startServer(process.env.PORT);
+serverSingleton.startServer(process.env.PORT).catch((e) => {
+	console.error('backend/src/server start failed', e);
+	process.exit(1);
+});
