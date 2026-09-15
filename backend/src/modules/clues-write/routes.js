@@ -82,6 +82,7 @@ function registerCluesWriteRoutes(deps) {
       if (!(req.user.role === '主管' || req.user.role === '超级管理员')) return res.status(403).json({ code: 403, msg: '无权限分配' });
       const assignedTo = (body.assignedTo || '').toString();
       const note = body.note || '';
+      const trimmedNote = (note || '').toString().trim();
       const source = (body.source || '').toString();
       const isPublicPoolSource = source === 'publicPool';
       let ids = Array.isArray(body.ids) ? body.ids.slice() : [];
@@ -161,36 +162,34 @@ function registerCluesWriteRoutes(deps) {
 
       const now = nowStr();
       const ph = ids.map(() => '?').join(',');
-      const checkRows = await query(`SELECT id, visitStatus FROM clues WHERE id IN (${ph})`, ids);
-      const skipped = [];
-      const allowed = [];
-      if (isPublicPoolSource) {
-        for (const r of checkRows || []) {
-          if (r && r.id) allowed.push(r.id);
-        }
-      } else {
-        for (const r of checkRows || []) {
-          const vs = r && r.visitStatus ? '' + r.visitStatus : '';
-          if (vs.indexOf('访') !== -1) skipped.push(r.id);
-          else allowed.push(r.id);
-        }
+      const checkRows = await query(`SELECT id, visitStatus, assignedTo, assignedBy, assignedAt, assignNote FROM clues WHERE id IN (${ph})`, ids);
+      const allowedRows = (checkRows || []).filter((r) => r && r.id);
+      const allowed = allowedRows.map((r) => r.id);
+      if (allowed.length === 0) return res.json({ code: 400, msg: '没有可分配的有效记录' });
+
+      const reassignedRows = allowedRows.filter((r) => {
+        const cur = r && r.assignedTo ? String(r.assignedTo).trim() : '';
+        return !!cur && cur !== assignedTo;
+      });
+      if (reassignedRows.length > 0 && !trimmedNote) {
+        return res.json({ code: 400, msg: `检测到 ${reassignedRows.length} 条为重新分配，请填写分配原因备注` });
       }
-      if (allowed.length === 0) {
-        return res.json({ code: 400, msg: `所选记录中 ${skipped.length} 条均为已回访（1访/2访/3访/4访），无法分配` });
-      }
+
+      const sourceLabel = isPublicPoolSource ? '公海再分配' : '常规分配';
+      const noteForEvent = trimmedNote || (isPublicPoolSource ? '公海再分配' : '');
+      const assignEvent = `[#${now}] ${sourceLabel} ${req.user.username}->${assignedTo}${noteForEvent ? ` 原因:${noteForEvent}` : ''}`;
       const placeholders = allowed.map(() => '?').join(',');
       const sql = isPublicPoolSource
-        ? `UPDATE clues SET assignedTo = ?, assignedBy = ?, assignedAt = ?, assignNote = ?, expired = 0, expiredReason = NULL, visitStatus = CASE WHEN visitStatus = '过期单' THEN '' ELSE visitStatus END WHERE id IN (${placeholders})`
-        : `UPDATE clues SET assignedTo = ?, assignedBy = ?, assignedAt = ?, assignNote = ? WHERE id IN (${placeholders})`;
-      await execute(sql, [assignedTo, req.user.username, now, note].concat(allowed));
+        ? `UPDATE clues SET assignedTo = ?, assignedBy = ?, assignedAt = ?, assignNote = TRIM(CONCAT(COALESCE(assignNote, ''), CASE WHEN COALESCE(assignNote, '') = '' THEN '' ELSE '\n' END, ?)), expired = 0, expiredReason = NULL, visitStatus = CASE WHEN visitStatus = '过期单' THEN '' ELSE visitStatus END WHERE id IN (${placeholders})`
+        : `UPDATE clues SET assignedTo = ?, assignedBy = ?, assignedAt = ?, assignNote = TRIM(CONCAT(COALESCE(assignNote, ''), CASE WHEN COALESCE(assignNote, '') = '' THEN '' ELSE '\n' END, ?)) WHERE id IN (${placeholders})`;
+      await execute(sql, [assignedTo, req.user.username, now, assignEvent].concat(allowed));
       const assignedIdsText = allowed.join(',');
-      const skippedIdsText = skipped.join(',');
-      const sourceLabel = isPublicPoolSource ? '公海再分配' : '常规分配';
+      const reassignedIdsText = reassignedRows.map((r) => r.id).join(',');
       await addLog(
         req.user.username,
-        `分配线索[${sourceLabel}] 时间:${now} 分配给:${assignedTo} 成功:${allowed.length}条 ID:[${assignedIdsText}] 跳过:${skipped.length}条${skipped.length > 0 ? ` ID:[${skippedIdsText}]` : ''}`
+        `分配线索[${sourceLabel}] 时间:${now} 分配给:${assignedTo} 成功:${allowed.length}条 ID:[${assignedIdsText}] 重新分配:${reassignedRows.length}条${reassignedRows.length > 0 ? ` ID:[${reassignedIdsText}]` : ''}${trimmedNote ? ` 原因:${trimmedNote}` : ''}`
       );
-      return res.json({ code: 200, data: { assigned: allowed.length, skipped: skipped.length } });
+      return res.json({ code: 200, data: { assigned: allowed.length, skipped: 0, reassigned: reassignedRows.length } });
     } catch (e) {
       console.error('assignClues error', e);
       return res.json({ code: 500, msg: '分配失败' });

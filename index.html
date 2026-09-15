@@ -2010,11 +2010,11 @@
           </div>
 
           <div>
-            <label>备注（可选）</label>
-            <textarea v-model="assignNote" rows="3" style="width:100%;margin-top:6px;padding:8px;border-radius:6px;border:1px solid #ddd"></textarea>
+            <label>分配备注（重新分配必填原因）</label>
+            <textarea v-model="assignNote" rows="3" style="width:100%;margin-top:6px;padding:8px;border-radius:6px;border:1px solid #ddd" placeholder="如：客户要求更换跟进人、排班调整等"></textarea>
           </div>
 
-          <div style="color:#666;font-size:13px">提示：已回访的线索将被自动跳过，若没有选择任何条目，请切换为“全部筛选结果”或返回列表选择。</div>
+          <div style="color:#666;font-size:13px">提示：已分配且已回访的线索也允许重新分配；若是改分配给其他人，必须填写原因，系统会保留分配轨迹。</div>
 
           <div style="text-align:right;margin-top:6px;display:flex;justify-content:flex-end;gap:8px">
             <button @click="closeAssignModal" onclick="(window.app && window.app.closeAssignModal && window.app.closeAssignModal());" style="background:var(--disabled);color:white;border:none;padding:8px 12px;border-radius:4px;cursor:pointer">取消</button>
@@ -4466,6 +4466,7 @@ window.app = new Vue({
       }
       try{
         if(!this.assignTarget){ this.showMsg('请选择分配给的咨询账号','error'); return; }
+        const reason = (this.assignNote || '').trim();
         let body = { assignedTo: this.assignTarget, note: this.assignNote, source: this.assignSource };
         if(this.assignSource === 'publicPool'){
           const restoreTag = '公海再分配';
@@ -4475,6 +4476,19 @@ window.app = new Vue({
         }
         if(this.assignSource === 'publicPool' || this.assignScope === 'page'){
           if(!this.selectedIds || this.selectedIds.length===0){ this.showMsg('本页未选择任何线索','error'); return; }
+          if(this.assignSource !== 'publicPool' && !reason){
+            const sourceRows = this.tab === 8 ? (this.publicPoolPageList || []) : (this.pageList || []);
+            const selectedSet = new Set(this.selectedIds || []);
+            const needsReason = sourceRows.some(row => {
+              if(!row || !selectedSet.has(row.id)) return false;
+              const curOwner = row.assignedTo ? String(row.assignedTo).trim() : '';
+              return !!curOwner && curOwner !== this.assignTarget;
+            });
+            if(needsReason){
+              this.showMsg('检测到重新分配，请先填写分配原因备注','error');
+              return;
+            }
+          }
           body.ids = this.selectedIds.slice();
         }else{
           const approx = Number(this.filteredCount) || 0;
@@ -4487,7 +4501,10 @@ window.app = new Vue({
         const res = await this.assignClues(body);
         this.assignLoading = false;
         if(res && res.code === 200){
-          const msg = `分配完成：已分配 ${res.data && res.data.assigned?res.data.assigned:0} 条，跳过 ${res.data && res.data.skipped?res.data.skipped:0} 条`;
+          let msg = `分配完成：已分配 ${res.data && res.data.assigned?res.data.assigned:0} 条`;
+          if(res.data && typeof res.data.reassigned !== 'undefined'){
+            msg += `，其中重新分配 ${res.data.reassigned||0} 条`;
+          }
           this.showMsg(msg);
           const assignedSource = this.assignSource;
           this.closeAssignModal();

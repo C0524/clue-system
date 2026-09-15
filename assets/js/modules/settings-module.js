@@ -306,6 +306,7 @@
         vm.showMsg('请选择分配给的咨询账号', 'error');
         return;
       }
+      var reason = (vm.assignNote || '').trim();
       var body = { assignedTo: vm.assignTarget, note: vm.assignNote, source: vm.assignSource };
       if (vm.assignSource === 'publicPool') {
         var restoreTag = '公海再分配';
@@ -317,6 +318,20 @@
         if (!vm.selectedIds || vm.selectedIds.length === 0) {
           vm.showMsg('本页未选择任何线索', 'error');
           return;
+        }
+        // 在前端尽早拦截常见场景：本页勾选中存在“改给他人”的重新分配但未填写原因。
+        if (vm.assignSource !== 'publicPool' && !reason) {
+          var sourceRows = vm.tab === 8 ? (vm.publicPoolPageList || []) : (vm.pageList || []);
+          var selectedSet = new Set(vm.selectedIds || []);
+          var needsReason = sourceRows.some(function (row) {
+            if (!row || !selectedSet.has(row.id)) return false;
+            var curOwner = row.assignedTo ? String(row.assignedTo).trim() : '';
+            return !!curOwner && curOwner !== vm.assignTarget;
+          });
+          if (needsReason) {
+            vm.showMsg('检测到重新分配，请先填写分配原因备注', 'error');
+            return;
+          }
         }
         body.ids = vm.selectedIds.slice();
       } else {
@@ -331,7 +346,10 @@
       var res = await assignCluesReq(vm, body);
       vm.assignLoading = false;
       if (res && res.code === 200) {
-        var msg = '分配完成：已分配 ' + (res.data && res.data.assigned ? res.data.assigned : 0) + ' 条，跳过 ' + (res.data && res.data.skipped ? res.data.skipped : 0) + ' 条';
+        var msg = '分配完成：已分配 ' + (res.data && res.data.assigned ? res.data.assigned : 0) + ' 条';
+        if (res.data && typeof res.data.reassigned !== 'undefined') {
+          msg += '，其中重新分配 ' + (res.data.reassigned || 0) + ' 条';
+        }
         vm.showMsg(msg);
         var assignedSource = vm.assignSource;
         closeAssignModal(vm);
