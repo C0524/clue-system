@@ -74,9 +74,19 @@
         vm.detailErrors = {};
       } catch (_) {}
 
+      var oldBook = (vm.currentDetail && vm.currentDetail.book ? String(vm.currentDetail.book) : '').trim();
+      var newBook = (vm.editDetail && vm.editDetail.book ? String(vm.editDetail.book) : '').trim();
+      var detailCompareKeys = ['taoRen', 'channel', 'name', 'gender', 'age', 'phone', 'wechat', 'doctor', 'regDoctor', 'department', 'intent', 'bookUser', 'book', 'visitDate', 'visitMode', 'medicineDay', 'dosageForm', 'cost', 'regFee', 'treatmentFee', 'content', 'preCase', 'createTime'];
+      var changedKeys = [];
+      for (var ck = 0; ck < detailCompareKeys.length; ck++) {
+        var compareKey = detailCompareKeys[ck];
+        var compareNewVal = vm.editDetail && (typeof vm.editDetail[compareKey] !== 'undefined') ? vm.editDetail[compareKey] : undefined;
+        var compareOldVal = vm.currentDetail && (typeof vm.currentDetail[compareKey] !== 'undefined') ? vm.currentDetail[compareKey] : undefined;
+        if (String(compareNewVal) !== String(compareOldVal)) changedKeys.push(compareKey);
+      }
+      var assistantBookedVisitDateOnly = oldBook === '已预约' && newBook === '已预约' && changedKeys.length === 1 && changedKeys[0] === 'visitDate';
+
       try {
-        var oldBook = (vm.currentDetail && vm.currentDetail.book ? String(vm.currentDetail.book) : '').trim();
-        var newBook = (vm.editDetail && vm.editDetail.book ? String(vm.editDetail.book) : '').trim();
         var changedToBooked = oldBook !== '已预约' && newBook === '已预约';
         if (changedToBooked) {
           var visitDateVal = (vm.editDetail && vm.editDetail.visitDate ? String(vm.editDetail.visitDate) : '').trim();
@@ -102,7 +112,7 @@
         console.warn('validate booking required fields failed', e);
       }
 
-      if (vm.user && vm.user.role === '医助' && vm.tab == 6) {
+      if (vm.user && vm.user.role === '医助' && vm.tab == 6 && !assistantBookedVisitDateOnly) {
         var md = (vm.editDetail && vm.editDetail.medicineDay) ? String(vm.editDetail.medicineDay) : '';
         var needDosageForm = !(md && md.startsWith('未'));
         var required = ['medicineDay', 'regFee', 'cost', 'treatmentFee'];

@@ -59,19 +59,49 @@ function registerCluesIoRoutes(deps) {
 
   async function findDuplicateCandidates(data, requestedParentClueId) {
     const payload = data || {};
-    const nameTrim = (payload.name || '').toString().trim();
     const phoneTrim = (payload.phone || '').toString().trim();
     const wechatTrim = (payload.wechat || '').toString().trim();
-    if (!(nameTrim || phoneTrim || wechatTrim) || requestedParentClueId) return [];
+    if (!(phoneTrim || wechatTrim) || requestedParentClueId) return [];
     const rows = await query(
-      'SELECT id, createTime, doctor, taoRen, name, phone, wechat, intent, book FROM clues WHERE (phone = ? AND phone <> "") OR (wechat = ? AND wechat <> "") OR (name = ? AND name <> "") ORDER BY createTime DESC, id DESC',
-      [phoneTrim, wechatTrim, nameTrim]
+      'SELECT id, createTime, doctor, taoRen, name, phone, wechat, intent, book FROM clues WHERE (phone = ? AND phone <> "") OR (wechat = ? AND wechat <> "") ORDER BY createTime DESC, id DESC',
+      [phoneTrim, wechatTrim]
     );
     const list = Array.isArray(rows) ? rows.slice() : [];
     for (const row of list) {
       row.expired = await computeExpiredAsync(row);
     }
     return list;
+  }
+
+  async function findSameNameReminderCandidate(data) {
+    const payload = data || {};
+    const nameTrim = (payload.name || '').toString().trim();
+    const phoneTrim = (payload.phone || '').toString().trim();
+    const wechatTrim = (payload.wechat || '').toString().trim();
+    if (!nameTrim) return null;
+    const rows = await query(
+      'SELECT id, createTime, doctor, taoRen, name, phone, wechat FROM clues WHERE name = ? AND name <> "" ORDER BY createTime DESC, id DESC LIMIT 20',
+      [nameTrim]
+    );
+    for (const row of rows || []) {
+      const rowPhone = (row && row.phone ? String(row.phone) : '').trim();
+      const rowWechat = (row && row.wechat ? String(row.wechat) : '').trim();
+      const hasSameContact =
+        (!!phoneTrim && !!rowPhone && rowPhone === phoneTrim) ||
+        (!!wechatTrim && !!rowWechat && rowWechat === wechatTrim);
+      if (hasSameContact) continue;
+      if (!rowPhone && !rowWechat) continue;
+      return {
+        id: row.id,
+        createTime: row.createTime || '',
+        doctor: row.doctor || '',
+        taoRen: row.taoRen || '',
+        name: row.name || '',
+        phone: rowPhone,
+        wechat: rowWechat,
+      };
+    }
+    return null;
   }
 
   function getCreateRequiredErrors(data) {
@@ -143,6 +173,7 @@ function registerCluesIoRoutes(deps) {
       const createTime = nowStr();
       let markDupToExpire = null;
       let markDupReason = '';
+      let sameNameReminder = null;
       const requestedParentClueId =
         data.parentClueId && String(data.parentClueId).trim() !== '' ? String(data.parentClueId).trim() : null;
       let linkParentClueId = requestedParentClueId;
@@ -169,6 +200,11 @@ function registerCluesIoRoutes(deps) {
         }
       } catch (e) {
         console.warn('duplicate check failed', e && e.message ? e.message : e);
+      }
+      try {
+        sameNameReminder = await findSameNameReminderCandidate(data);
+      } catch (e) {
+        console.warn('same-name reminder check failed', e && e.message ? e.message : e);
       }
       linkParentClueId = await resolveIntroRootParentClueId(data, linkParentClueId);
       const sql = 'INSERT INTO clues (id, taoRen, channel, name, gender, age, phone, wechat, doctor, regDoctor, department, preCase, content, intent, visitStatus, bookUser, book, arrive, medicineDay, cost, visitMode, visitDate, createTime, firstConsultTime, username, parentClueId) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
@@ -240,7 +276,9 @@ function registerCluesIoRoutes(deps) {
         console.warn('associate images failed', e && e.message);
       }
       await addLog(req.user.username, `新增线索 ${id}：${data.name || ''}，医生：${data.doctor || ''}`);
-      return res.json({ code: 200, data: { id: id } });
+      const respData = { id: id };
+      if (sameNameReminder) respData.nameDuplicateReminder = sameNameReminder;
+      return res.json({ code: 200, data: respData });
     } catch (e) {
       console.error('save error', e);
       return res.json({ code: 500, msg: '添加失败' });
@@ -258,6 +296,7 @@ function registerCluesIoRoutes(deps) {
       const createTime = nowStr();
       let markDupToExpire = null;
       let markDupReason = '';
+      let sameNameReminder = null;
       const requestedParentClueId =
         data.parentClueId && String(data.parentClueId).trim() !== '' ? String(data.parentClueId).trim() : null;
       let linkParentClueId = requestedParentClueId;
@@ -284,6 +323,11 @@ function registerCluesIoRoutes(deps) {
         }
       } catch (e) {
         console.warn('duplicate check failed', e && e.message ? e.message : e);
+      }
+      try {
+        sameNameReminder = await findSameNameReminderCandidate(data);
+      } catch (e) {
+        console.warn('same-name reminder check failed', e && e.message ? e.message : e);
       }
       linkParentClueId = await resolveIntroRootParentClueId(data, linkParentClueId);
       const sql = 'INSERT INTO clues (id, taoRen, channel, name, gender, age, phone, wechat, doctor, regDoctor, department, preCase, content, intent, visitStatus, bookUser, book, arrive, medicineDay, cost, visitMode, visitDate, createTime, firstConsultTime, username, parentClueId) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
@@ -327,7 +371,9 @@ function registerCluesIoRoutes(deps) {
         console.warn('associate images failed', e && e.message);
       }
       await addLog(req.user.username, `新增线索 ${id}：${data.name || ''}，医生：${data.doctor || ''}`);
-      return res.json({ code: 200, data: { id: id } });
+      const respData = { id: id };
+      if (sameNameReminder) respData.nameDuplicateReminder = sameNameReminder;
+      return res.json({ code: 200, data: respData });
     } catch (e) {
       console.error('addClue error', e);
       return res.json({ code: 500, msg: '添加失败' });

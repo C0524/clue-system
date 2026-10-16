@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>医疗线索话单系统</title>
-<script src="https://cdn.jsdelivr.net/npm/vue@2.7.14/dist/vue.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
+<script src="vendor/vue.min.js"></script>
+<script src="vendor/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="vendor/flatpickr/flatpickr.min.css">
+<script src="vendor/flatpickr/flatpickr.min.js"></script>
+<script src="vendor/flatpickr/l10n/zh.js"></script>
 <script src="assets/js/api-client.js"></script>
 <script src="assets/js/http-client.js"></script>
 <script src="assets/js/auth-api.js"></script>
@@ -118,7 +118,7 @@
           <!-- 第一行：套电人员、渠道 -->
           <div class="form-row">
             <div class="input small"><label>套电人员</label><input type="text" :value="(user && user.username) || ''" disabled style="width:100%" /></div>
-            <div class="input"><label>渠道</label><select v-model="form.channel"><option value="">请选择</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="线下自来">线下自来</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="其他">其他</option></select></div>
+            <div class="input"><label>渠道</label><select v-model="form.channel"><option value="">请选择</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="线下自来">线下自来</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="树青种草">树青种草</option><option value="其他">其他</option></select></div>
           </div>
 
           <!-- 第二行：意向专家、科室 -->
@@ -192,7 +192,7 @@
         <div class="search-box split-row">
           <div class="search-main-row">
           <div class="input"><label>套电人员</label><select v-model="search.taoRen"><option value="">套电人员</option><option v-for="n in taoRenList" :key="'trf-'+n" :value="n">{{n}}</option></select></div>
-          <div class="input"><label>渠道</label><select v-model="search.channel"><option value="">渠道</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="线下自来">线下自来</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="其他">其他</option></select></div>
+          <div class="input"><label>渠道</label><select v-model="search.channel"><option value="">渠道</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="线下自来">线下自来</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="树青种草">树青种草</option><option value="其他">其他</option></select></div>
           <div class="input id-filter"><label>ID</label><input v-model="search.id" placeholder="按 ID 精确或部分匹配"></div>
           <div class="input"><label>姓名</label><input v-model="search.name" placeholder="姓名"></div>
           <div class="input"><label>电话</label><input v-model="search.phone" placeholder="电话"></div>
@@ -301,7 +301,7 @@
       <div v-if="tab==8">
         <div class="search-box split-row">
           <div class="search-main-row">
-          <div class="input"><label>渠道</label><select v-model="search.channel"><option value="">渠道</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="线下自来">线下自来</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="其他">其他</option></select></div>
+          <div class="input"><label>渠道</label><select v-model="search.channel"><option value="">渠道</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="线下自来">线下自来</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="树青种草">树青种草</option><option value="其他">其他</option></select></div>
           <div class="input id-filter"><label>ID</label><input v-model="search.id" placeholder="按 ID 精确或部分匹配"></div>
           <div class="input"><label>姓名</label><input v-model="search.name" placeholder="姓名"></div>
           <div class="input"><label>电话</label><input v-model="search.phone" placeholder="电话"></div>
@@ -401,7 +401,7 @@
         <div class="search-box split-row">
           <div class="search-main-row">
           <!-- 套电人员与预约人员过滤已移除；系统将使用登录用户名记录操作 -->
-          <div class="input"><label>渠道</label><select v-model="search.channel"><option value="">渠道</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="其他">其他</option></select></div>
+          <div class="input"><label>渠道</label><select v-model="search.channel"><option value="">渠道</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="树青种草">树青种草</option><option value="其他">其他</option></select></div>
           <div class="input id-filter"><label>ID</label><input v-model="search.id" placeholder="按 ID 精确或部分匹配"></div>
           <div class="input"><label>姓名</label><input v-model="search.name" placeholder="姓名"></div>
           <div class="input"><label>电话</label><input v-model="search.phone" placeholder="电话"></div>
@@ -1348,6 +1348,7 @@
                     <option value="有来医生">有来医生</option>
                     <option value="医带患">医带患</option>
                     <option value="导入">导入</option>
+                    <option value="树青种草">树青种草</option>
                     <option value="其他">其他</option>
                   </select>
                 </div>
@@ -1412,7 +1413,7 @@
                 <div class="detail-label">预约时间：</div>
                 <div class="detail-val" v-if="!detailEditing">{{ currentDetail.visitDate || '-' }}</div>
                 <div v-else style="flex:0 0 var(--detail-mid-w)">
-                  <template v-if="!(user && user.role === '医助' && tab==6)">
+                  <template v-if="!(user && user.role === '医助' && tab==6 && currentDetail.book !== '已预约')">
                     <input type="text" class="js-single-picker" data-model="editDetail.visitDate" placeholder="选择日期" readonly>
                   </template>
                   <template v-else>
@@ -1736,7 +1737,7 @@
             <input :value="editForm.taoRen || user.username || ''" disabled>
           </template>
         </div>
-        <div class="input"><label>渠道</label><select v-model="editForm.channel"><option value="">请选择</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="其他">其他</option></select></div>
+        <div class="input"><label>渠道</label><select v-model="editForm.channel"><option value="">请选择</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="树青种草">树青种草</option><option value="其他">其他</option></select></div>
         <div class="input"><label>客户姓名</label><input v-model="editForm.name"></div>
         <div class="input"><label>性别</label><select v-model="editForm.gender"><option value="">请选择</option><option value="男">男</option><option value="女">女</option></select></div>
             <div class="input"><label>年龄</label><input v-model="editForm.age" inputmode="numeric" pattern="\d{1,2}" @input="editForm.age = ('' + ($event.target.value || '')).replace(/\D/g,'').slice(0,2)"></div>
@@ -2694,6 +2695,92 @@ window.app = new Vue({
         }, 1000);
       }catch(e){ console.error('showMsg error', e); }
     },
+    showMsgWithAction(msg, actionText, onClick, type='error', duration=6000){
+      try{
+        const container = document.getElementById('toast-container');
+        if(!container) return;
+        const div = document.createElement('div');
+        div.className = 'toast with-action ' + (type==='success' ? 'success' : 'error');
+
+        const textEl = document.createElement('span');
+        textEl.className = 'toast-text';
+        textEl.textContent = msg || '';
+        div.appendChild(textEl);
+
+        const btn = document.createElement('button');
+        btn.className = 'toast-action-btn';
+        btn.type = 'button';
+        btn.textContent = actionText || '查看';
+        btn.addEventListener('click', async (ev) => {
+          try{ ev.preventDefault(); ev.stopPropagation(); }catch(e){}
+          try{
+            if(typeof onClick === 'function') await onClick();
+          }catch(err){
+            console.error('showMsgWithAction click error', err);
+          }
+          try{ container.removeChild(div); }catch(e){}
+        });
+        div.appendChild(btn);
+
+        container.appendChild(div);
+        const stay = Math.max(2000, Number(duration) || 6000);
+        setTimeout(()=>{
+          try{ container.removeChild(div); }catch(e){}
+        }, stay);
+      }catch(e){ console.error('showMsgWithAction error', e); }
+    },
+    async jumpToClueDetailById(id){
+      try{
+        const clueId = (id || id === 0) ? String(id).trim() : '';
+        if(!clueId){ this.showMsg('缺少线索ID，无法跳转','error'); return; }
+        this.tab = 2;
+        this.resetSearch();
+        this.search.id = clueId;
+        await this.getList(1);
+        let target = (this.list || []).find(it => String(it && it.id) === clueId);
+        if(!target){
+          target = await this.fetchClueById(clueId);
+        }
+        if(target && target.id){
+          try{ this.flashRow(target.id); }catch(e){}
+          await this.openDetail(target);
+          return;
+        }
+        this.showMsg('未找到该线索，可能无权限查看','error');
+      }catch(e){
+        console.error('jumpToClueDetailById error', e);
+        this.showMsg('跳转失败，请重试','error');
+      }
+    },
+    showDuplicateJumpToast(existing, msg){
+      try{
+        const ex = existing || {};
+        const clueId = ex && ex.id ? String(ex.id) : '';
+        if(!clueId){
+          this.showMsg(msg || '检测到重复线索', 'error');
+          return;
+        }
+        const text = (msg || '检测到重复线索') + `（ID:${clueId}）`;
+        this.showMsgWithAction(text, '跳转查看', async () => {
+          await this.jumpToClueDetailById(clueId);
+        }, 'error', 8000);
+      }catch(e){
+        console.error('showDuplicateJumpToast error', e);
+      }
+    },
+    maybeShowSameNameReminder(data){
+      try{
+        const reminder = data && data.nameDuplicateReminder ? data.nameDuplicateReminder : null;
+        if(!reminder || !reminder.id) return;
+        const idText = String(reminder.id);
+        const msg = `提醒：检测到同姓名历史线索（ID:${idText}，电话：${reminder.phone || '-'}，微信：${reminder.wechat || '-'}），请核实是否不同电话同一人员。`;
+        this.showMsgWithAction(msg, '跳转查看', async () => {
+          await this.jumpToClueDetailById(idText);
+        }, 'error', 9000);
+      }catch(e){
+        console.error('maybeShowSameNameReminder error', e);
+      }
+    },
     maybeShowExpiredTooltip(item, e){
       try{
         if(!item) return;
@@ -3423,6 +3510,7 @@ window.app = new Vue({
                   if(lastDoctor && currentDoctor && lastDoctor === currentDoctor){
                     const info = `检测到相同医生(${lastDoctor})的过期单，禁止再次录入。`;
                     try{ alert(info); }catch(e){ console.warn('show same-doctor duplicate alert failed', e); }
+                    this.showDuplicateJumpToast(last, info);
                     return;
                   }
                   // 不同医生：提示确认，确认后直接标记为强制插入（后端将放行并生成新 ID）
@@ -3435,6 +3523,7 @@ window.app = new Vue({
                   // 非过期单：阻止新增并提示查看现有线索
                   const info = `检测到相同电话/微信已录入线索\n录入时间：${last.createTime || '未知'}\n所属医生：${last.doctor || '未知'}\n套电人员：${last.taoRen || '未知'}\n\n已阻止新增，请先查看现有线索。`;
                   try{ alert(info); }catch(e){ console.warn('show duplicate alert failed', e); }
+                  this.showDuplicateJumpToast(last, '已阻止新增：检测到重复线索');
                   return;
                 }
               }catch(e){ console.error('duplicate check handling error', e); return; }
@@ -3463,6 +3552,7 @@ window.app = new Vue({
         if(data.msg === 'duplicate_same_doctor'){
           const info = `检测到相同医生(${ex.doctor || this.form.doctor || '未知'})的过期单，禁止再次录入。`;
           try{ alert(info); }catch(e){ console.warn('duplicate_same_doctor alert failed', e); }
+          this.showDuplicateJumpToast(ex, info);
           return;
         }
 
@@ -3470,6 +3560,7 @@ window.app = new Vue({
         if(!isExpiredDup){
           const info = `检测到相同电话/微信已录入线索\n录入时间：${ex.createTime||'未知'}\n所属医生：${ex.doctor||'未知'}\n套电人员：${ex.taoRen||'未知'}\n\n已阻止新增，请先查看现有线索。`;
           try{ alert(info); }catch(e){ console.warn('show duplicate alert failed', e); }
+          this.showDuplicateJumpToast(ex, '已阻止新增：检测到重复线索');
           return;
         }
 
@@ -3488,6 +3579,7 @@ window.app = new Vue({
           this.isLoading = false;
           if(forced && forced.code === 200){
             this.showMsg('提交成功');
+              this.maybeShowSameNameReminder(forced && forced.data ? forced.data : null);
             this.form={taoRen:"",channel:"",name:"",gender:"",age:"",phone:"",wechat:"",doctor:"",department:"",content:""};
             try{ this.uploadQueue = []; this.uploadedImages = []; }catch(e){}
             await this.refreshCurrentTabAfterSave();
@@ -3500,6 +3592,7 @@ window.app = new Vue({
 
       if(data && data.code===200){
         this.showMsg('提交成功');
+        this.maybeShowSameNameReminder(data && data.data ? data.data : null);
         this.form={taoRen:"",channel:"",name:"",gender:"",age:"",phone:"",wechat:"",doctor:"",department:"",content:""};
         // clear upload lists
         try{ this.uploadQueue = []; this.uploadedImages = []; }catch(e){}
@@ -3695,14 +3788,23 @@ window.app = new Vue({
       if(!this.canEditDetail(this.currentDetail)){ this.showMsg('无权限修改该话单','error'); return; }
       this.detailSaving = true;
       this.isLoading = true;
-      // 医助在预约记录（tab==6）模式下，必须填写五项费用/处方字段，且只能修改这五项
+      // 医助在预约记录（tab==6）模式下，必须填写费用/处方必填项；已预约线索允许补改预约时间
       try{
         // clear previous field errors
         try{ this.detailErrors = {}; }catch(e){}
+        const oldBook = (this.currentDetail && this.currentDetail.book ? String(this.currentDetail.book) : '').trim();
+        const newBook = (this.editDetail && this.editDetail.book ? String(this.editDetail.book) : '').trim();
+        const detailCompareKeys = ['taoRen','channel','name','gender','age','phone','wechat','doctor','regDoctor','department','intent','bookUser','book','visitDate','visitMode','medicineDay','dosageForm','cost','regFee','treatmentFee','content','preCase','createTime'];
+        const changedKeys = [];
+        for(const compareKey of detailCompareKeys){
+          const compareNewVal = this.editDetail && (typeof this.editDetail[compareKey] !== 'undefined') ? this.editDetail[compareKey] : undefined;
+          const compareOldVal = this.currentDetail && (typeof this.currentDetail[compareKey] !== 'undefined') ? this.currentDetail[compareKey] : undefined;
+          if(String(compareNewVal) !== String(compareOldVal)) changedKeys.push(compareKey);
+        }
+        const assistantBookedVisitDateOnly = oldBook === '已预约' && newBook === '已预约' && changedKeys.length === 1 && changedKeys[0] === 'visitDate';
+
         // 规则：当预约状态从“非已预约”修改为“已预约”时，预约时间与挂号费必填
         try{
-          const oldBook = (this.currentDetail && this.currentDetail.book ? String(this.currentDetail.book) : '').trim();
-          const newBook = (this.editDetail && this.editDetail.book ? String(this.editDetail.book) : '').trim();
           const changedToBooked = oldBook !== '已预约' && newBook === '已预约';
           if(changedToBooked){
             const visitDateVal = (this.editDetail && this.editDetail.visitDate ? String(this.editDetail.visitDate) : '').trim();
@@ -3726,7 +3828,7 @@ window.app = new Vue({
           }
         }catch(e){ console.warn('validate booking required fields failed', e); }
 
-        if(this.user && this.user.role === '医助' && this.tab == 6){
+        if(this.user && this.user.role === '医助' && this.tab == 6 && !assistantBookedVisitDateOnly){
           // 如果 medicineDay 表示未开药或未支付（选项以 '未' 开头），则剂型不必填
           const md = (this.editDetail && this.editDetail.medicineDay) ? String(this.editDetail.medicineDay) : '';
           const needDosageForm = !(md && md.startsWith('未'));
