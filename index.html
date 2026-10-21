@@ -118,7 +118,7 @@
           <!-- 第一行：套电人员、渠道 -->
           <div class="form-row">
             <div class="input small"><label>套电人员</label><input type="text" :value="(user && user.username) || ''" disabled style="width:100%" /></div>
-            <div class="input"><label>渠道</label><select v-model="form.channel"><option value="">请选择</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="线下自来">线下自来</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="树青种草">树青种草</option><option value="其他">其他</option></select></div>
+            <div class="input"><label>渠道</label><select v-model="form.channel"><option value="">请选择</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="线下自来">线下自来</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="树青种草">树青种草</option><option value="树青-挂号网">树青-挂号网</option><option value="其他">其他</option></select></div>
           </div>
 
           <!-- 第二行：意向专家、科室 -->
@@ -192,7 +192,7 @@
         <div class="search-box split-row">
           <div class="search-main-row">
           <div class="input"><label>套电人员</label><select v-model="search.taoRen"><option value="">套电人员</option><option v-for="n in taoRenList" :key="'trf-'+n" :value="n">{{n}}</option></select></div>
-          <div class="input"><label>渠道</label><select v-model="search.channel"><option value="">渠道</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="线下自来">线下自来</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="树青种草">树青种草</option><option value="其他">其他</option></select></div>
+          <div class="input"><label>渠道</label><select v-model="search.channel"><option value="">渠道</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="线下自来">线下自来</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="树青种草">树青种草</option><option value="树青-挂号网">树青-挂号网</option><option value="其他">其他</option></select></div>
           <div class="input id-filter"><label>ID</label><input v-model="search.id" placeholder="按 ID 精确或部分匹配"></div>
           <div class="input"><label>姓名</label><input v-model="search.name" placeholder="姓名"></div>
           <div class="input"><label>电话</label><input v-model="search.phone" placeholder="电话"></div>
@@ -301,7 +301,7 @@
       <div v-if="tab==8">
         <div class="search-box split-row">
           <div class="search-main-row">
-          <div class="input"><label>渠道</label><select v-model="search.channel"><option value="">渠道</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="线下自来">线下自来</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="树青种草">树青种草</option><option value="其他">其他</option></select></div>
+          <div class="input"><label>渠道</label><select v-model="search.channel"><option value="">渠道</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="线下自来">线下自来</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="树青种草">树青种草</option><option value="树青-挂号网">树青-挂号网</option><option value="其他">其他</option></select></div>
           <div class="input id-filter"><label>ID</label><input v-model="search.id" placeholder="按 ID 精确或部分匹配"></div>
           <div class="input"><label>姓名</label><input v-model="search.name" placeholder="姓名"></div>
           <div class="input"><label>电话</label><input v-model="search.phone" placeholder="电话"></div>
@@ -401,7 +401,7 @@
         <div class="search-box split-row">
           <div class="search-main-row">
           <!-- 套电人员与预约人员过滤已移除；系统将使用登录用户名记录操作 -->
-          <div class="input"><label>渠道</label><select v-model="search.channel"><option value="">渠道</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="树青种草">树青种草</option><option value="其他">其他</option></select></div>
+          <div class="input"><label>渠道</label><select v-model="search.channel"><option value="">渠道</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="树青种草">树青种草</option><option value="树青-挂号网">树青-挂号网</option><option value="其他">其他</option></select></div>
           <div class="input id-filter"><label>ID</label><input v-model="search.id" placeholder="按 ID 精确或部分匹配"></div>
           <div class="input"><label>姓名</label><input v-model="search.name" placeholder="姓名"></div>
           <div class="input"><label>电话</label><input v-model="search.phone" placeholder="电话"></div>
@@ -1349,6 +1349,7 @@
                     <option value="医带患">医带患</option>
                     <option value="导入">导入</option>
                     <option value="树青种草">树青种草</option>
+                    <option value="树青-挂号网">树青-挂号网</option>
                     <option value="其他">其他</option>
                   </select>
                 </div>
@@ -1737,7 +1738,7 @@
             <input :value="editForm.taoRen || user.username || ''" disabled>
           </template>
         </div>
-        <div class="input"><label>渠道</label><select v-model="editForm.channel"><option value="">请选择</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="树青种草">树青种草</option><option value="其他">其他</option></select></div>
+        <div class="input"><label>渠道</label><select v-model="editForm.channel"><option value="">请选择</option><option value="抖音">抖音</option><option value="抖音-蓝V">抖音-蓝V</option><option value="快手">快手</option><option value="小红书">小红书</option><option value="视频号">视频号</option><option value="头条">头条</option><option value="百家号">百家号</option><option value="公众号">公众号</option><option value="小白号">小白号</option><option value="介绍">介绍</option><option value="有来医生">有来医生</option><option value="医带患">医带患</option><option value="导入">导入</option><option value="自主挂号">自主挂号</option><option value="树青种草">树青种草</option><option value="树青-挂号网">树青-挂号网</option><option value="其他">其他</option></select></div>
         <div class="input"><label>客户姓名</label><input v-model="editForm.name"></div>
         <div class="input"><label>性别</label><select v-model="editForm.gender"><option value="">请选择</option><option value="男">男</option><option value="女">女</option></select></div>
             <div class="input"><label>年龄</label><input v-model="editForm.age" inputmode="numeric" pattern="\d{1,2}" @input="editForm.age = ('' + ($event.target.value || '')).replace(/\D/g,'').slice(0,2)"></div>
