@@ -13,6 +13,7 @@
 <script src="assets/js/http-client.js"></script>
 <script src="assets/js/auth-api.js"></script>
 <script src="assets/js/clues-api.js"></script>
+<script src="assets/js/public-pool-export-utils.js"></script>
 <script src="assets/js/users-api.js"></script>
 <script src="assets/js/doctors-api.js"></script>
 <script src="assets/js/visits-api.js"></script>
@@ -328,6 +329,7 @@
           </div>
           </div>
           <div class="search-extra-actions">
+            <button @click="exportPublicPoolByCurrentFilters()" style="background:#2d8cf0;color:white;border:none;padding:6px 10px;border-radius:4px;">导出数据</button>
             <button v-if="user.role==='主管' || user.role==='超级管理员'" @click="openAssignModal('publicPool')" style="background:#f39c12;color:white;border:none;padding:6px 10px;border-radius:4px;">再分配</button>
           </div>
         </div>
@@ -5830,6 +5832,19 @@ window.app = new Vue({
       }
       return payload;
     },
+    buildPublicPoolSearchPayload(){
+      if (window.PublicPoolExportUtils && typeof window.PublicPoolExportUtils.buildPublicPoolExportPayload === 'function') {
+        return window.PublicPoolExportUtils.buildPublicPoolExportPayload(this.search || {});
+      }
+      const payload = {};
+      if(this.search){
+        const keys = ['id','assignedTo','channel','name','phone','wechat','doctor','regDoctor','startDate','endDate','timeType','timeStart','timeEnd','expiredReasonType'];
+        keys.forEach(k=>{ if(this.search[k]) payload[k]=this.search[k]; });
+      }
+      payload.page = 1;
+      payload.pageSize = 5000;
+      return payload;
+    },
     formatExportDateTime(v){
       if(!v) return '';
       const s = String(v).trim();
@@ -5963,6 +5978,116 @@ window.app = new Vue({
         this.showMsg(`导出成功，共 ${rows.length} 条`);
       }catch(err){
         console.error('exportListByCurrentFilters error', err);
+        this.showMsg('导出失败','error');
+      }finally{
+        this.isExporting = false;
+      }
+    },
+    async exportPublicPoolByCurrentFilters(){
+      if(this.tab !== 8){
+        this.showMsg('当前仅在公海线索页签可导出','error');
+        return;
+      }
+      if(!this.publicPoolTotalCount || Number(this.publicPoolTotalCount) <= 0){
+        this.showMsg('当前筛选条件下没有可导出的数据','error');
+        return;
+      }
+      this.isExporting = true;
+      try{
+        const payload = this.buildPublicPoolSearchPayload();
+        const resp = await this.fetchAssignableRows(payload, 'publicPool');
+        if(!resp || resp.code !== 200){
+          this.showMsg('导出失败：读取筛选结果失败','error');
+          return;
+        }
+
+        const rows = (resp.data && resp.data.rows) ? (resp.data.rows || []) : (resp.data || []);
+        if(!Array.isArray(rows) || rows.length === 0){
+          this.showMsg('当前筛选条件下没有可导出的数据','error');
+          return;
+        }
+
+        const ids = rows.map(r => r && r.id).filter(Boolean);
+        const exportResp = await this.exportClues(ids);
+        if(!exportResp || exportResp.code !== 200){
+          this.showMsg('导出失败：读取回访记录失败','error');
+          return;
+        }
+
+        const visits = (exportResp.data && exportResp.data.visits) ? exportResp.data.visits : [];
+        const visitsByClue = {};
+        for(const v of (visits || [])){
+          const cid = v && v.clueId;
+          if(!cid) continue;
+          if(!visitsByClue[cid]) visitsByClue[cid] = [];
+          visitsByClue[cid].push(v);
+        }
+
+        const baseHeaders = ['ID','创建时间','分配时间','套电人员','渠道','姓名','性别','年龄','电话','微信','意向专家','挂号专家','咨询人员','意向','回访状态','预约人员','预约','挂号时间'];
+        let maxVisitCount = 0;
+        rows.forEach((row)=>{
+          const cnt = (visitsByClue[row.id] || []).length;
+          if (cnt > maxVisitCount) maxVisitCount = cnt;
+        });
+        const visitHeaders = [];
+        for (let i = 1; i <= maxVisitCount; i++) visitHeaders.push(`回访${i}`);
+        const headers = baseHeaders.concat(visitHeaders);
+
+        const dataRows = rows.map((item)=>{
+          const regDoctor = item.regDoctor || item.doctor || '';
+          const visitCells = [];
+          const vlist = visitsByClue[item.id] || [];
+          for (let i = 0; i < maxVisitCount; i++) {
+            const v = vlist[i];
+            if (!v) { visitCells.push(''); continue; }
+            const ts = this.formatExportDateTime(v.time || '');
+            const user = (v.user || '').toString().trim();
+            const content = ((v.content || '') + '').replace(/[\r\n]+/g, ' ').trim();
+            const parts = [];
+            if (ts) parts.push(ts);
+            if (user) parts.push(user);
+            const head = parts.join(' ');
+            visitCells.push(head ? (content ? `${head}：${content}` : head) : content);
+          }
+          return [
+            item.id || '',
+            this.formatExportDateTime(item.createTime || ''),
+            this.formatExportDateTime(item.assignedAt || ''),
+            item.taoRen || '',
+            item.channel || '',
+            item.name || '',
+            item.gender || '',
+            item.age || '',
+            item.phone || '',
+            item.wechat || '',
+            item.doctor || '',
+            regDoctor,
+            this.resolveConsultForExport(item),
+            item.intent || '',
+            item.visitStatus || '',
+            item.bookUser || '',
+            item.book || '',
+            this.formatExportDateTime(item.bookTime || ''),
+            ...visitCells
+          ];
+        });
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+        const cols = [
+          {wch:10},{wch:18},{wch:18},{wch:12},{wch:12},{wch:12},{wch:8},{wch:8},{wch:14},{wch:14},{wch:12},{wch:12},{wch:12},{wch:10},{wch:10},{wch:12},{wch:10},{wch:18}
+        ];
+        for (let i = 0; i < maxVisitCount; i++) cols.push({wch:34});
+        ws['!cols'] = cols;
+        XLSX.utils.book_append_sheet(wb, ws, '话单筛选导出');
+
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const stamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+        XLSX.writeFile(wb, `话单筛选导出_${stamp}.xlsx`);
+        this.showMsg(`导出成功，共 ${rows.length} 条`);
+      }catch(err){
+        console.error('exportPublicPoolByCurrentFilters error', err);
         this.showMsg('导出失败','error');
       }finally{
         this.isExporting = false;
